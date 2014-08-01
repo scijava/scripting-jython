@@ -38,7 +38,7 @@ import org.scijava.script.AdaptedScriptLanguage;
 import org.scijava.script.ScriptLanguage;
 
 /**
- * An adapter of the Jython interpreter to ImageJ's scripting interfaces.
+ * An adapter of the Jython interpreter to the SciJava scripting interface.
  * 
  * @author Johannes Schindelin
  * @see ScriptEngine
