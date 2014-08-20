@@ -90,7 +90,7 @@
 		<!-- Third-party dependencies -->
 		<dependency>
 			<groupId>org.python</groupId>
-			<artifactId>jython</artifactId>
+			<artifactId>jython-standalone</artifactId>
 			<version>2.5.3</version>
 		</dependency>
 
