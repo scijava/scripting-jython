@@ -33,6 +33,7 @@ package org.scijava.plugins.scripting.jython;
 
 import javax.script.ScriptEngine;
 
+import org.python.core.PyNone;
 import org.scijava.plugin.Plugin;
 import org.scijava.script.AdaptedScriptLanguage;
 import org.scijava.script.ScriptLanguage;
@@ -54,6 +55,11 @@ public class JythonScriptLanguage extends AdaptedScriptLanguage {
 	public ScriptEngine getScriptEngine() {
 		// TODO: Consider adapting the wrapped ScriptEngineFactory's ScriptEngine.
 		return new JythonScriptEngine();
+	}
+
+	@Override
+	public Object decode(final Object object) {
+		return object instanceof PyNone ? null : object;
 	}
 
 }
