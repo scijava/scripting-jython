@@ -89,8 +89,8 @@
 
 		<!-- Third-party dependencies -->
 		<dependency>
-			<groupId>org.python</groupId>
-			<artifactId>jython-standalone</artifactId>
+			<groupId>org.scijava</groupId>
+			<artifactId>jython-shaded</artifactId>
 			<version>2.5.3</version>
 		</dependency>
 
