@@ -104,4 +104,41 @@ public class JythonTest {
 		assertEquals(expected, actual);
 	}
 
+	/**
+	 * Tests that variables assigned a primitive long value have the expected
+	 * type.
+	 * <p>
+	 * There is a crazy bug in {@link org.python.jsr223.PyScriptEngine}, which
+	 * results in variables assigned a long primitive to somehow end up as (or
+	 * appearing to end up as) {@link java.math.BigInteger} instances instead. See
+	 * <a href=
+	 * "http://sourceforge.net/p/jython/mailman/jython-users/thread/54370FE9.5010603%40farowl.co.uk/"
+	 * >this thread on the jython-users mailing list</a> for discussion.
+	 * </p>
+	 * <p>
+	 * This test ensures that that specific problem gets flagged if it occurs. As
+	 * long as we keep using our own Jython {@code ScriptEngine} implementation
+	 * (i.e.: {@link org.scijava.plugins.scripting.jython.JythonScriptEngine}),
+	 * the problem does not occur. But if we switch to the stock JSR-223 Jython
+	 * {@code ScriptEngine} (i.e.: {@link org.python.jsr223.PyScriptEngine}), the
+	 * problem manifests. See {@link JythonScriptLanguage#getScriptEngine()}.
+	 * </p>
+	 */
+	@Test
+	public void testLongType() throws InterruptedException, ExecutionException,
+		IOException, ScriptException
+	{
+		final Context context = new Context(ScriptService.class);
+		final ScriptService scriptService = context.getService(ScriptService.class);
+
+		final String script = "" + //
+			"# @OUTPUT String varType\n" + //
+			"a = 10L\n" + //
+			"varType = type(a)\n";
+		final ScriptModule m = scriptService.run("longType.py", script, true).get();
+
+		final Object actual = m.getOutput("varType");
+		final String expected = "<type 'long'>";
+		assertEquals(expected, actual);
+	}
 }
