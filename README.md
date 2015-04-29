@@ -1,4 +1,4 @@
-![](http://jenkins.imagej.net/job/scripting-Jython/lastBuild/badge/icon)
+[![](http://jenkins.imagej.net/job/scripting-Jython/lastBuild/badge/icon)](http://jenkins.imagej.net/job/scripting-Jython/)
 
 # Jython Scripting
 
