@@ -1,3 +1,5 @@
+![](http://jenkins.imagej.net/job/scripting-Jython/lastBuild/badge/icon)
+
 # Jython Scripting
 
 This library provides a
