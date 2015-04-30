@@ -1,4 +1,4 @@
-# @String name (label=Please enter your name,description=Name field)
+# @String(label="Please enter your name",description="Name field") name
 # @OUTPUT String greeting
 
 # A Jython script with parameters.
