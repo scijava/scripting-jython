@@ -34,6 +34,7 @@ package org.scijava.plugins.scripting.jython;
 import javax.script.ScriptEngine;
 
 import org.python.core.PyNone;
+import org.python.core.PyObject;
 import org.scijava.plugin.Plugin;
 import org.scijava.script.AdaptedScriptLanguage;
 import org.scijava.script.ScriptLanguage;
@@ -59,7 +60,14 @@ public class JythonScriptLanguage extends AdaptedScriptLanguage {
 
 	@Override
 	public Object decode(final Object object) {
-		return object instanceof PyNone ? null : object;
+		if (object instanceof PyNone) return null;
+		if (object instanceof PyObject) {
+			// Unwrap Python objects when they wrap Java ones.
+			final PyObject pyObj = (PyObject) object;
+			final Class<?> javaType = pyObj.getType().getProxyType();
+			if (javaType != null) return pyObj.__tojava__(javaType);
+		}
+		return object;
 	}
 
 }
