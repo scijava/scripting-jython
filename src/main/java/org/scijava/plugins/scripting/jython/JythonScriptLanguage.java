@@ -35,6 +35,7 @@ import javax.script.ScriptEngine;
 
 import org.python.core.PyNone;
 import org.python.core.PyObject;
+import org.python.core.PyString;
 import org.scijava.plugin.Plugin;
 import org.scijava.script.AdaptedScriptLanguage;
 import org.scijava.script.ScriptLanguage;
@@ -66,6 +67,9 @@ public class JythonScriptLanguage extends AdaptedScriptLanguage {
 			final PyObject pyObj = (PyObject) object;
 			final Class<?> javaType = pyObj.getType().getProxyType();
 			if (javaType != null) return pyObj.__tojava__(javaType);
+		}
+		if (object instanceof PyString) {
+			return ((PyString) object).getString();
 		}
 		return object;
 	}
