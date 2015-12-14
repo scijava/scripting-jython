@@ -31,14 +31,23 @@
 
 package org.scijava.plugins.scripting.jython;
 
+import java.lang.ref.PhantomReference;
+import java.lang.ref.ReferenceQueue;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+
 import javax.script.ScriptEngine;
 
 import org.python.core.PyNone;
 import org.python.core.PyObject;
 import org.python.core.PyString;
+import org.python.util.PythonInterpreter;
+import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
 import org.scijava.script.AdaptedScriptLanguage;
 import org.scijava.script.ScriptLanguage;
+import org.scijava.thread.ThreadService;
 
 /**
  * An adapter of the Jython interpreter to the SciJava scripting interface.
@@ -49,6 +58,14 @@ import org.scijava.script.ScriptLanguage;
 @Plugin(type = ScriptLanguage.class, name = "Python")
 public class JythonScriptLanguage extends AdaptedScriptLanguage {
 
+	private final LinkedList<JythonEnginePhantomReference> phantomReferences =
+		new LinkedList<JythonEnginePhantomReference>();
+	private final ReferenceQueue<JythonScriptEngine> queue =
+		new ReferenceQueue<JythonScriptEngine>();
+
+	@Parameter
+	private ThreadService threadService;
+
 	public JythonScriptLanguage() {
 		super("jython");
 	}
@@ -56,7 +73,51 @@ public class JythonScriptLanguage extends AdaptedScriptLanguage {
 	@Override
 	public ScriptEngine getScriptEngine() {
 		// TODO: Consider adapting the wrapped ScriptEngineFactory's ScriptEngine.
-		return new JythonScriptEngine();
+		final JythonScriptEngine engine = new JythonScriptEngine();
+
+		synchronized (phantomReferences) {
+			phantomReferences.add(new JythonEnginePhantomReference(engine, queue));
+
+			// If we added references to an empty queue, we need to start
+			// a new polling thread
+			if (phantomReferences.size() == 1) {
+				threadService.run(new Runnable() {
+
+					@Override
+					public void run() {
+						boolean done = false;
+
+						// poll the queue
+						while (!done) {
+							try {
+								Thread.sleep(100);
+
+								synchronized (phantomReferences) {
+									JythonEnginePhantomReference ref =
+										(JythonEnginePhantomReference) queue.poll();
+
+									// if we have a ref, clean it up
+									if (ref != null) {
+										ref.cleanup();
+										phantomReferences.remove(ref);
+									}
+
+									// Once we're done with our known phantom refs
+									// we can shut down this thread.
+									done = phantomReferences.size() == 0;
+								}
+
+							}
+							catch (final Exception ex) {
+								// log exception, continue
+							}
+						}
+					}
+				});
+
+			}
+		}
+		return engine;
 	}
 
 	@Override
@@ -74,4 +135,35 @@ public class JythonScriptLanguage extends AdaptedScriptLanguage {
 		return object;
 	}
 
+	private static class JythonEnginePhantomReference extends
+		PhantomReference<JythonScriptEngine>
+	{
+
+		public PythonInterpreter interpreter;
+
+		public JythonEnginePhantomReference(JythonScriptEngine engine,
+			ReferenceQueue<JythonScriptEngine> queue)
+		{
+			super(engine, queue);
+			interpreter = engine.interpreter;
+		}
+
+		public void cleanup() {
+			final List<String> scriptLocals = new ArrayList<String>();
+			PythonInterpreter interp = interpreter;
+			if (interp == null) return;
+
+			final PyObject locals = interp.getLocals();
+			for (final PyObject item : locals.__iter__().asIterable()) {
+				final String localVar = item.toString();
+				if (!localVar.contains("__name__") && !localVar.contains("__doc__")) {
+
+					scriptLocals.add(item.toString());
+				}
+			}
+			for (final String string : scriptLocals) {
+				interp.set(string, null);
+			}
+		}
+	}
 }
