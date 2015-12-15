@@ -43,6 +43,7 @@ import org.python.core.PyNone;
 import org.python.core.PyObject;
 import org.python.core.PyString;
 import org.python.util.PythonInterpreter;
+import org.scijava.log.LogService;
 import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
 import org.scijava.script.AdaptedScriptLanguage;
@@ -71,6 +72,9 @@ public class JythonScriptLanguage extends AdaptedScriptLanguage {
 	@Parameter
 	private ThreadService threadService;
 
+	@Parameter
+	private LogService logService;
+
 	public JythonScriptLanguage() {
 		super("jython");
 	}
@@ -79,6 +83,7 @@ public class JythonScriptLanguage extends AdaptedScriptLanguage {
 	public ScriptEngine getScriptEngine() {
 		// TODO: Consider adapting the wrapped ScriptEngineFactory's ScriptEngine.
 		final JythonScriptEngine engine = new JythonScriptEngine();
+		final LogService ls = logService;
 
 		synchronized (phantomReferences) {
 			// NB: This phantom reference is used to clean up any local variables
@@ -128,6 +133,7 @@ public class JythonScriptLanguage extends AdaptedScriptLanguage {
 							}
 							catch (final Exception ex) {
 								// log exception, continue
+								ls.error(ex);
 							}
 						}
 					}
