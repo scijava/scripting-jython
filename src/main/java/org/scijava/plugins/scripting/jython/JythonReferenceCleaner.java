@@ -68,7 +68,8 @@ public class JythonReferenceCleaner {
 		// to use PhantomReferences because the "scope" of a script extends
 		// beyond its eval method - a consumer may still want to inspect
 		// the state of variables after evaluation.
-		// By using PhantomReferences we are saying that the scope of 
+		//
+		// By using PhantomReferences we are saying that the scope of
 		// script evaluation equals the lifetime of the ScriptEngine.
 		phantomReferences.add(new JythonEnginePhantomReference(engine, queue));
 
@@ -77,6 +78,7 @@ public class JythonReferenceCleaner {
 		// threads that would need to be interrupted - instead only starting
 		// threads running when there is actually a PhantomReference that
 		// will eventually be enqueued.
+		//
 		// Here we check if there is already a polling thread in operation -
 		// if not, we start a new thread.
 		if (phantomReferences.size() == 1) {
@@ -144,19 +146,24 @@ public class JythonReferenceCleaner {
 
 			// NB: This method for cleaning up local variables was taken from:
 			// http://python.6.x6.nabble.com/Cleaning-up-PythonInterpreter-object-td1777184.html
-			// Because Python is an interpreted language, when a Python script creates new
-			// variables they stick around in a static org.python.core.PySystemState  variable
-			// (defaultSystemState) the org.python.core.Py class.
-			// Thus an implicit static state is created by script evaluation, so we must manually
-			// clean up local variables known to the interpreter when the scope of an executed
-			// script is over.
-			// See original bug report for the memory leak that prompted this solution:
+			//
+			// Because Python is an interpreted language, when a Python script
+			// creates new variables they stick around in a static
+			// org.python.core.PySystemState variable (defaultSystemState)
+			// the org.python.core.Py class.
+			//
+			// Thus an implicit static state is created by script evaluation,
+			// so we must manually clean up local variables known to the
+			// interpreter when the scope of an executed script is over.
+			//
+			// See original bug report for the leak that prompted this solution:
 			// http://fiji.sc/bugzilla/show_bug.cgi?id=1203
+
 			final PyObject locals = interp.getLocals();
 			for (final PyObject item : locals.__iter__().asIterable()) {
 				final String localVar = item.toString();
-				// Ignore __name__ and __doc__ variables, which are special and known not
-				// to be local variables created by evaluation.
+				// Ignore __name__ and __doc__ variables, which are special
+				// and known not to be local variables created by evaluation.
 				if (!localVar.contains("__name__") && !localVar.contains("__doc__")) {
 					// Build list of variables to clean
 					scriptLocals.add(item.toString());
