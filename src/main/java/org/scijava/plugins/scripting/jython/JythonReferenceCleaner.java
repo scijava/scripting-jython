@@ -95,8 +95,8 @@ public class JythonReferenceCleaner {
 
 							synchronized (JythonReferenceCleaner.this) {
 								// poll the queue
-								JythonEnginePhantomReference ref =
-										(JythonEnginePhantomReference) queue.poll();
+								final JythonEnginePhantomReference ref =
+									(JythonEnginePhantomReference) queue.poll();
 
 								// if we have a ref, clean it up
 								if (ref != null) {
@@ -132,8 +132,8 @@ public class JythonReferenceCleaner {
 
 		public PythonInterpreter interpreter;
 
-		public JythonEnginePhantomReference(JythonScriptEngine engine,
-			ReferenceQueue<JythonScriptEngine> queue)
+		public JythonEnginePhantomReference(final JythonScriptEngine engine,
+			final ReferenceQueue<JythonScriptEngine> queue)
 		{
 			super(engine, queue);
 			interpreter = engine.interpreter;
@@ -141,7 +141,7 @@ public class JythonReferenceCleaner {
 
 		public void cleanup() {
 			final List<String> scriptLocals = new ArrayList<String>();
-			PythonInterpreter interp = interpreter;
+			final PythonInterpreter interp = interpreter;
 			if (interp == null) return;
 
 			// NB: This method for cleaning up local variables was taken from:
