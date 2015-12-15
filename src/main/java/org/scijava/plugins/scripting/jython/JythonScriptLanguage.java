@@ -36,18 +36,30 @@ import javax.script.ScriptEngine;
 import org.python.core.PyNone;
 import org.python.core.PyObject;
 import org.python.core.PyString;
+import org.scijava.log.LogService;
+import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
 import org.scijava.script.AdaptedScriptLanguage;
 import org.scijava.script.ScriptLanguage;
+import org.scijava.thread.ThreadService;
 
 /**
  * An adapter of the Jython interpreter to the SciJava scripting interface.
  * 
  * @author Johannes Schindelin
+ * @author Mark Hiner <hinerm@gmail.com>
  * @see ScriptEngine
  */
 @Plugin(type = ScriptLanguage.class, name = "Python")
 public class JythonScriptLanguage extends AdaptedScriptLanguage {
+
+	private JythonReferenceCleaner cleaner = new JythonReferenceCleaner();
+
+	@Parameter
+	private ThreadService threadService;
+
+	@Parameter
+	private LogService logService;
 
 	public JythonScriptLanguage() {
 		super("jython");
@@ -56,7 +68,9 @@ public class JythonScriptLanguage extends AdaptedScriptLanguage {
 	@Override
 	public ScriptEngine getScriptEngine() {
 		// TODO: Consider adapting the wrapped ScriptEngineFactory's ScriptEngine.
-		return new JythonScriptEngine();
+		final JythonScriptEngine engine = new JythonScriptEngine();
+		cleaner.queueCleanup(engine, threadService, logService);
+		return engine;
 	}
 
 	@Override

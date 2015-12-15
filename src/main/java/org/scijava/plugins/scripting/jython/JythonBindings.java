@@ -31,8 +31,10 @@
 
 package org.scijava.plugins.scripting.jython;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +44,7 @@ import javax.script.Bindings;
 
 import org.python.core.PyStringMap;
 import org.python.util.PythonInterpreter;
+import org.scijava.script.ScriptModule;
 
 /**
  * A {@link Bindings} wrapper around Jython's local variables.
@@ -51,6 +54,25 @@ import org.python.util.PythonInterpreter;
 public class JythonBindings implements Bindings {
 
 	protected final PythonInterpreter interpreter;
+
+	/*
+	 * NB: In our JythonScriptLanguage we explain the need for cleaning
+	 * up after a PythonInterpreter and declare the scope of a
+	 * Python environment to be equal to the lifetime of its parent
+	 * JythonScriptEngine.
+	 * As triggering our cleaning method involves PhantomReferences
+	 * we must ensure that JythonScriptEngines can actually be
+	 * garbage collected when it is no longer in use.
+	 * To do this, we have to prevent JythonScriptEngines from
+	 * being passed to the PythonInterpreter - which would then
+	 * create a hard reference to the ScriptEngine through the
+	 * static PySystemState.
+	 * Similarly we do not want to pass ScriptModules to the
+	 * PythonInterpreter, as the ScriptModule has a hard
+	 * reference to its ScriptEngine.
+	 */
+	private Map<String, WeakReference<Object>> shallowMap =
+		new HashMap<String, WeakReference<Object>>();
 
 	public JythonBindings(final PythonInterpreter interpreter) {
 		this.interpreter = interpreter;
@@ -81,6 +103,10 @@ public class JythonBindings implements Bindings {
 
 	@Override
 	public Object get(Object key) {
+		if (shallowMap.containsKey(key)) {
+			return shallowMap.get(key).get();
+		}
+
 		try {
 			return interpreter.get((String)key);
 		} catch (Error e) {
@@ -91,18 +117,28 @@ public class JythonBindings implements Bindings {
 	@Override
 	public Object put(String key, Object value) {
 		final Object result = get(key);
-		try {
-			interpreter.set(key, value);
-		} catch (Error e) {
-			// ignore
+
+		if (value instanceof ScriptModule || value instanceof JythonScriptEngine){
+			shallowMap.put(key, new WeakReference<Object>(value));
 		}
+		else {
+			try {
+				interpreter.set(key, value);
+			}
+			catch (Error e) {
+				// ignore
+			}
+		}
+
 		return result;
 	}
 
 	@Override
 	public Object remove(Object key) {
 		final Object result = get(key);
-		if (result != null) interpreter.getLocals().__delitem__((String)key);
+		if (shallowMap.containsKey(key)) shallowMap.remove(key);
+		else if (result != null) interpreter.getLocals().__delitem__((String)key);
+
 		return result;
 	}
 
