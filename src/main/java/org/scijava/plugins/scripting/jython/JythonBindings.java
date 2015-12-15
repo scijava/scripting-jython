@@ -55,6 +55,22 @@ public class JythonBindings implements Bindings {
 
 	protected final PythonInterpreter interpreter;
 
+	/*
+	 * NB: In our JythonScriptLanguage we explain the need for cleaning
+	 * up after a PythonInterpreter and declare the scope of a
+	 * Python environment to be equal to the lifetime of its parent
+	 * JythonScriptEngine.
+	 * As triggering our cleaning method involves PhantomReferences
+	 * we must ensure that JythonScriptEngines can actually be
+	 * garbage collected when it is no longer in use.
+	 * To do this, we have to prevent JythonScriptEngines from
+	 * being passed to the PythonInterpreter - which would then
+	 * create a hard reference to the ScriptEngine through the
+	 * static PySystemState.
+	 * Similarly we do not want to pass ScriptModules to the
+	 * PythonInterpreter, as the ScriptModule has a hard
+	 * reference to its ScriptEngine.
+	 */
 	private Map<String, WeakReference<Object>> shallowMap =
 		new HashMap<String, WeakReference<Object>>();
 
