@@ -59,7 +59,7 @@ public class JythonTest {
 	public void testBasic() throws InterruptedException, ExecutionException,
 		IOException, ScriptException
 	{
-		final Context context = new Context(ScriptService.class);
+		final Context context = new Context();
 		final ScriptService scriptService = context.getService(ScriptService.class);
 		final String script = "1 + 2";
 		final ScriptModule m = scriptService.run("add.py", script, true).get();
@@ -70,7 +70,7 @@ public class JythonTest {
 
 	@Test
 	public void testLocals() throws ScriptException {
-		final Context context = new Context(ScriptService.class);
+		final Context context = new Context();
 		final ScriptService scriptService = context.getService(ScriptService.class);
 
 		final ScriptLanguage language = scriptService.getLanguageByExtension("py");
@@ -89,7 +89,7 @@ public class JythonTest {
 	public void testParameters() throws InterruptedException, ExecutionException,
 		IOException, ScriptException
 	{
-		final Context context = new Context(ScriptService.class);
+		final Context context = new Context();
 		final ScriptService scriptService = context.getService(ScriptService.class);
 
 		final String script = "" + //
@@ -128,7 +128,7 @@ public class JythonTest {
 	public void testLongType() throws InterruptedException, ExecutionException,
 		IOException, ScriptException
 	{
-		final Context context = new Context(ScriptService.class);
+		final Context context = new Context();
 		final ScriptService scriptService = context.getService(ScriptService.class);
 
 		final String script = "" + //
