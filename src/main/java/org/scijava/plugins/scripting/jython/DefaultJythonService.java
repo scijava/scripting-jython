@@ -2,19 +2,19 @@
  * #%L
  * JSR-223-compliant Jython scripting language plugin.
  * %%
- * Copyright (C) 2008 - 2015 Board of Regents of the University of
+ * Copyright (C) 2008 - 2016 Board of Regents of the University of
  * Wisconsin-Madison, Broad Institute of MIT and Harvard, and Max Planck
  * Institute of Molecular Cell Biology and Genetics.
  * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -28,59 +28,60 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-
 package org.scijava.plugins.scripting.jython;
 
 import javax.script.ScriptEngine;
 
-import org.python.core.PyNone;
-import org.python.core.PyObject;
-import org.python.core.PyString;
-import org.scijava.Context;
+import org.scijava.log.LogService;
 import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
-import org.scijava.script.AdaptedScriptLanguage;
-import org.scijava.script.ScriptLanguage;
+import org.scijava.service.AbstractService;
+import org.scijava.service.Service;
+import org.scijava.thread.ThreadService;
 
 /**
- * An adapter of the Jython interpreter to the SciJava scripting interface.
- * 
- * @author Johannes Schindelin
- * @author Mark Hiner <hinerm@gmail.com>
- * @see ScriptEngine
+ * Default {@link JythonService} implementation. Maintains a
+ * {@link JythonReferenceCleaner} instance.
+ *
+ * @author Mark Hiner hinerm at gmail.com
  */
-@Plugin(type = ScriptLanguage.class, name = "Python")
-public class JythonScriptLanguage extends AdaptedScriptLanguage {
+@Plugin(type = Service.class)
+public class DefaultJythonService extends AbstractService implements JythonService {
+
+	// -- Fields --
+
+	private JythonReferenceCleaner cleaner;
+
+	// -- Parameters --
 
 	@Parameter
-	private Context context;
+	private ThreadService threadService;
 
-	public JythonScriptLanguage() {
-		super("jython");
-	}
+	@Parameter
+	private LogService logService;
+
+	// -- JythonService methods --
 
 	@Override
 	public ScriptEngine getScriptEngine() {
-		// NB: recursive priorities can only be resolved via inter-service
-		//     dependencies. There is no way to make the ScriptService
-		//     depend on the JythonService because of the hierarchy
-		//     of components. So we have to get the JythonService indirectly.
-		return context.service(JythonService.class).getScriptEngine();
+		// TODO: Consider adapting the wrapped ScriptEngineFactory's
+		// ScriptEngine.
+		final JythonScriptEngine engine = new JythonScriptEngine();
+		cleaner.queueCleanup(engine, threadService, logService);
+		return engine;
 	}
+
+	// -- Service methods --
 
 	@Override
-	public Object decode(final Object object) {
-		if (object instanceof PyNone) return null;
-		if (object instanceof PyObject) {
-			// Unwrap Python objects when they wrap Java ones.
-			final PyObject pyObj = (PyObject) object;
-			final Class<?> javaType = pyObj.getType().getProxyType();
-			if (javaType != null) return pyObj.__tojava__(javaType);
-		}
-		if (object instanceof PyString) {
-			return ((PyString) object).getString();
-		}
-		return object;
+	public void initialize() {
+		cleaner = new JythonReferenceCleaner();
 	}
 
+	// -- Disposable methods --
+
+	@Override
+	public void dispose() {
+		cleaner.shutDown();
+	}
 }

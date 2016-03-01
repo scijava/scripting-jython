@@ -59,6 +59,8 @@ public class JythonReferenceCleaner {
 	private final ReferenceQueue<JythonScriptEngine> queue =
 		new ReferenceQueue<JythonScriptEngine>();
 
+	private boolean shutDown = false;
+
 	/** Queues the future cleanup operation on a separate thread, */
 	public synchronized void queueCleanup(final JythonScriptEngine engine,
 		final ThreadService threadService, final LogService log)
@@ -106,7 +108,7 @@ public class JythonReferenceCleaner {
 
 								// Once we're done with our known phantom refs
 								// we can let this thread shut down
-								done = phantomReferences.size() == 0;
+								done = phantomReferences.size() == 0 || shutDown;
 							}
 
 						}
@@ -118,6 +120,10 @@ public class JythonReferenceCleaner {
 				}
 			});
 		}
+	}
+
+	public void shutDown() {
+		shutDown = true;
 	}
 
 	// -- Helper classes --
