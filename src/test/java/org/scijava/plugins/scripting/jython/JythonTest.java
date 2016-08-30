@@ -33,6 +33,7 @@ package org.scijava.plugins.scripting.jython;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
@@ -64,8 +65,8 @@ public class JythonTest {
 		final String script = "1 + 2";
 		final ScriptModule m = scriptService.run("add.py", script, true).get();
 		final Object result = m.getReturnValue();
-		// NB: Result is of type org.python.core.PyInteger.
-		assertEquals("3", result.toString());
+		assertSame(Integer.class, result.getClass());
+		assertEquals(3, result);
 	}
 
 	@Test

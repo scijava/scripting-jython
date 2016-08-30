@@ -33,6 +33,9 @@ package org.scijava.plugins.scripting.jython;
 
 import javax.script.ScriptEngine;
 
+import org.python.core.PyBoolean;
+import org.python.core.PyFloat;
+import org.python.core.PyInteger;
 import org.python.core.PyNone;
 import org.python.core.PyObject;
 import org.python.core.PyString;
@@ -71,14 +74,23 @@ public class JythonScriptLanguage extends AdaptedScriptLanguage {
 	@Override
 	public Object decode(final Object object) {
 		if (object instanceof PyNone) return null;
+		if (object instanceof PyBoolean) {
+			return ((PyBoolean) object).getBooleanValue();
+		}
+		if (object instanceof PyInteger) {
+			return ((PyInteger) object).getValue();
+		}
+		if (object instanceof PyFloat) {
+			return ((PyFloat) object).getValue();
+		}
+		if (object instanceof PyString) {
+			return ((PyString) object).getString();
+		}
 		if (object instanceof PyObject) {
 			// Unwrap Python objects when they wrap Java ones.
 			final PyObject pyObj = (PyObject) object;
 			final Class<?> javaType = pyObj.getType().getProxyType();
 			if (javaType != null) return pyObj.__tojava__(javaType);
-		}
-		if (object instanceof PyString) {
-			return ((PyString) object).getString();
 		}
 		return object;
 	}
