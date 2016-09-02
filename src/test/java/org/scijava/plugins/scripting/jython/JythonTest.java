@@ -64,7 +64,7 @@ public class JythonTest {
 		final ScriptService scriptService = context.getService(ScriptService.class);
 		final String script = "1 + 2";
 		final ScriptModule m = scriptService.run("add.py", script, true).get();
-		final Object result = m.getReturnValue();
+		final Object result = m.getLanguage().decode(m.getReturnValue());
 		assertSame(Integer.class, result.getClass());
 		assertEquals(3, result);
 	}
@@ -78,8 +78,8 @@ public class JythonTest {
 		final ScriptEngine engine = language.getScriptEngine();
 		assertEquals(JythonScriptEngine.class, engine.getClass());
 		engine.put("hello", 17);
-		assertEquals("17", engine.eval("hello").toString());
-		assertEquals("17", engine.get("hello").toString());
+		assertEquals(17, language.decode(engine.eval("hello")));
+		assertEquals(17, language.decode(engine.get("hello")));
 
 		final Bindings bindings = engine.getBindings(ScriptContext.ENGINE_SCOPE);
 		bindings.clear();
