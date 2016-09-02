@@ -8,13 +8,13 @@
  * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -47,7 +47,7 @@ import org.scijava.script.ScriptLanguage;
 
 /**
  * An adapter of the Jython interpreter to the SciJava scripting interface.
- * 
+ *
  * @author Johannes Schindelin
  * @author Mark Hiner <hinerm@gmail.com>
  * @see ScriptEngine
@@ -65,9 +65,9 @@ public class JythonScriptLanguage extends AdaptedScriptLanguage {
 	@Override
 	public ScriptEngine getScriptEngine() {
 		// NB: recursive priorities can only be resolved via inter-service
-		//     dependencies. There is no way to make the ScriptService
-		//     depend on the JythonService because of the hierarchy
-		//     of components. So we have to get the JythonService indirectly.
+		// dependencies. There is no way to make the ScriptService
+		// depend on the JythonService because of the hierarchy
+		// of components. So we have to get the JythonService indirectly.
 		return context.service(JythonService.class).getScriptEngine();
 	}
 

@@ -8,13 +8,13 @@
  * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -48,7 +48,7 @@ import org.scijava.script.ScriptModule;
 
 /**
  * A {@link Bindings} wrapper around Jython's local variables.
- * 
+ *
  * @author Johannes Schindelin
  */
 public class JythonBindings implements Bindings {
@@ -71,8 +71,7 @@ public class JythonBindings implements Bindings {
 	 * PythonInterpreter, as the ScriptModule has a hard
 	 * reference to its ScriptEngine.
 	 */
-	private Map<String, WeakReference<Object>> shallowMap =
-		new HashMap<String, WeakReference<Object>>();
+	private final Map<String, WeakReference<Object>> shallowMap = new HashMap<>();
 
 	public JythonBindings(final PythonInterpreter interpreter) {
 		this.interpreter = interpreter;
@@ -89,12 +88,12 @@ public class JythonBindings implements Bindings {
 	}
 
 	@Override
-	public boolean containsKey(Object key) {
+	public boolean containsKey(final Object key) {
 		return get(key) != null;
 	}
 
 	@Override
-	public boolean containsValue(Object value) {
+	public boolean containsValue(final Object value) {
 		for (final Object value2 : values()) {
 			if (value.equals(value2)) return true;
 		}
@@ -102,30 +101,31 @@ public class JythonBindings implements Bindings {
 	}
 
 	@Override
-	public Object get(Object key) {
+	public Object get(final Object key) {
 		if (shallowMap.containsKey(key)) {
 			return shallowMap.get(key).get();
 		}
 
 		try {
-			return interpreter.get((String)key);
-		} catch (Error e) {
+			return interpreter.get((String) key);
+		}
+		catch (final Error e) {
 			return null;
 		}
 	}
 
 	@Override
-	public Object put(String key, Object value) {
+	public Object put(final String key, final Object value) {
 		final Object result = get(key);
 
-		if (value instanceof ScriptModule || value instanceof JythonScriptEngine){
-			shallowMap.put(key, new WeakReference<Object>(value));
+		if (value instanceof ScriptModule || value instanceof JythonScriptEngine) {
+			shallowMap.put(key, new WeakReference<>(value));
 		}
 		else {
 			try {
 				interpreter.set(key, value);
 			}
-			catch (Error e) {
+			catch (final Error e) {
 				// ignore
 			}
 		}
@@ -134,23 +134,25 @@ public class JythonBindings implements Bindings {
 	}
 
 	@Override
-	public Object remove(Object key) {
+	public Object remove(final Object key) {
 		final Object result = get(key);
 		if (shallowMap.containsKey(key)) shallowMap.remove(key);
-		else if (result != null) interpreter.getLocals().__delitem__((String)key);
+		else if (result != null) interpreter.getLocals().__delitem__((String) key);
 
 		return result;
 	}
 
 	@Override
-	public void putAll(Map<? extends String, ? extends Object> toMerge) {
-		for (final Entry<? extends String, ? extends Object> entry : toMerge.entrySet()) {
+	public void putAll(final Map<? extends String, ? extends Object> toMerge) {
+		for (final Entry<? extends String, ? extends Object> entry : toMerge
+			.entrySet())
+		{
 			put(entry.getKey(), entry.getValue());
 		}
 	}
 
 	private PyStringMap dict() {
-		return (PyStringMap)interpreter.getLocals();
+		return (PyStringMap) interpreter.getLocals();
 	}
 
 	@Override
@@ -160,7 +162,7 @@ public class JythonBindings implements Bindings {
 
 	@Override
 	public Set<String> keySet() {
-		final Set<String> result = new HashSet<String>();
+		final Set<String> result = new HashSet<>();
 		for (final Object name : dict().keys()) {
 			result.add(name.toString());
 		}
@@ -169,18 +171,21 @@ public class JythonBindings implements Bindings {
 
 	@Override
 	public Collection<Object> values() {
-		final List<Object> result = new ArrayList<Object>();
-		for (final Object name : dict().keys()) try {
-			result.add(get(name));
-		} catch (Error exc) {
-			// ignore for now
+		final List<Object> result = new ArrayList<>();
+		for (final Object name : dict().keys()) {
+			try {
+				result.add(get(name));
+			}
+			catch (final Error exc) {
+				// ignore for now
+			}
 		}
 		return result;
 	}
 
 	@Override
 	public Set<Entry<String, Object>> entrySet() {
-		final Set<Entry<String, Object>> result = new HashSet<Entry<String, Object>>();
+		final Set<Entry<String, Object>> result = new HashSet<>();
 		for (final Object name : dict().keys()) {
 			result.add(new Entry<String, Object>() {
 
@@ -195,7 +200,7 @@ public class JythonBindings implements Bindings {
 				}
 
 				@Override
-				public Object setValue(Object value) {
+				public Object setValue(final Object value) {
 					throw new UnsupportedOperationException();
 				}
 			});

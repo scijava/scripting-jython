@@ -8,13 +8,13 @@
  * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -44,11 +44,10 @@ import org.scijava.script.AbstractScriptEngine;
 
 /**
  * A Python interpreter based on Jython.
- * 
+ *
  * @author Johannes Schindelin
  */
-public class JythonScriptEngine extends AbstractScriptEngine
-{
+public class JythonScriptEngine extends AbstractScriptEngine {
 
 	protected final PythonInterpreter interpreter;
 
@@ -73,7 +72,8 @@ public class JythonScriptEngine extends AbstractScriptEngine
 		setup();
 		try {
 			final String filename = getString(ScriptEngine.FILENAME);
-			return Py.runCode(interpreter.compile(reader, filename), null, interpreter.getLocals());
+			return Py.runCode(interpreter.compile(reader, filename), null, interpreter
+				.getLocals());
 		}
 		catch (final Exception e) {
 			throw new ScriptException(e);
@@ -97,7 +97,7 @@ public class JythonScriptEngine extends AbstractScriptEngine
 	}
 
 	private String getString(final String key) {
-		Object result = get(key);
+		final Object result = get(key);
 		return result == null ? null : result.toString();
 	}
 }
