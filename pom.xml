@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
-		<version>9.6.0</version>
+		<version>11.2.1</version>
 		<relativePath />
 	</parent>
 
@@ -22,6 +22,15 @@
 			<distribution>repo</distribution>
 		</license>
 	</licenses>
+
+	<properties>
+		<package-name>org.scijava.plugins.scripting.jython</package-name>
+
+		<license.licenseName>bsd_2</license.licenseName>
+		<license.copyrightOwners>Board of Regents of the University of
+Wisconsin-Madison, Broad Institute of MIT and Harvard, and Max Planck
+Institute of Molecular Cell Biology and Genetics.</license.copyrightOwners>
+	</properties>
 
 	<developers>
 		<developer>
@@ -88,29 +97,4 @@
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
-
-	<build>
-		<plugins>
-			<plugin>
-				<artifactId>maven-jar-plugin</artifactId>
-				<configuration>
-					<archive>
-						<manifest>
-							<packageName>org.scijava.plugins.scripting.jython</packageName>
-						</manifest>
-					</archive>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>license-maven-plugin</artifactId>
-				<configuration>
-					<licenseName>bsd_2</licenseName>
-					<organizationName>Board of Regents of the University of
-Wisconsin-Madison, Broad Institute of MIT and Harvard, and Max Planck
-Institute of Molecular Cell Biology and Genetics.</organizationName>
-				</configuration>
-			</plugin>
-		</plugins>
-	</build>
 </project>
