@@ -10,7 +10,7 @@
 	</parent>
 
 	<artifactId>scripting-jython</artifactId>
-	<version>0.3.2-SNAPSHOT</version>
+	<version>0.4.0-SNAPSHOT</version>
 
 	<name>SciJava Scripting: Jython</name>
 	<description>JSR-223-compliant Jython scripting language plugin.</description>
@@ -31,7 +31,7 @@
 Wisconsin-Madison, Broad Institute of MIT and Harvard, and Max Planck
 Institute of Molecular Cell Biology and Genetics.</license.copyrightOwners>
 
-		<jython.version>2.5.3</jython.version>
+		<jython.version>2.7.0</jython.version>
 		<jython-shaded.version>${jython.version}</jython-shaded.version>
 	</properties>
 
