@@ -23,18 +23,6 @@
 		</license>
 	</licenses>
 
-	<properties>
-		<package-name>org.scijava.plugins.scripting.jython</package-name>
-
-		<license.licenseName>bsd_2</license.licenseName>
-		<license.copyrightOwners>Board of Regents of the University of
-Wisconsin-Madison, Broad Institute of MIT and Harvard, and Max Planck
-Institute of Molecular Cell Biology and Genetics.</license.copyrightOwners>
-
-		<jython.version>2.7.0</jython.version>
-		<jython-shaded.version>${jython.version}</jython-shaded.version>
-	</properties>
-
 	<developers>
 		<developer>
 			<id>ctrueden</id>
@@ -78,6 +66,18 @@ Institute of Molecular Cell Biology and Genetics.</license.copyrightOwners>
 		<system>Jenkins</system>
 		<url>http://jenkins.imagej.net/job/scripting-Jython/</url>
 	</ciManagement>
+
+	<properties>
+		<package-name>org.scijava.plugins.scripting.jython</package-name>
+
+		<license.licenseName>bsd_2</license.licenseName>
+		<license.copyrightOwners>Board of Regents of the University of
+Wisconsin-Madison, Broad Institute of MIT and Harvard, and Max Planck
+Institute of Molecular Cell Biology and Genetics.</license.copyrightOwners>
+
+		<jython.version>2.7.0</jython.version>
+		<jython-shaded.version>${jython.version}</jython-shaded.version>
+	</properties>
 
 	<dependencies>
 		<!-- SciJava dependencies -->
