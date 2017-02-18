@@ -49,7 +49,7 @@ import org.scijava.script.ScriptLanguage;
  * An adapter of the Jython interpreter to the SciJava scripting interface.
  *
  * @author Johannes Schindelin
- * @author Mark Hiner <hinerm@gmail.com>
+ * @author Mark Hiner
  * @see ScriptEngine
  */
 @Plugin(type = ScriptLanguage.class, name = "Python")
