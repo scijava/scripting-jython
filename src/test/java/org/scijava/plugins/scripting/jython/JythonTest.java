@@ -43,6 +43,8 @@ import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.ScriptException;
 
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.scijava.Context;
 import org.scijava.script.ScriptLanguage;
@@ -56,12 +58,24 @@ import org.scijava.script.ScriptService;
  */
 public class JythonTest {
 
+	private Context context;
+	private ScriptService scriptService;
+
+	@Before
+	public void setUp() {
+		context = new Context();
+		scriptService = context.getService(ScriptService.class);
+	}
+
+	@After
+	public void tearDown() {
+		context.dispose();
+	}
+
 	@Test
 	public void testBasic() throws InterruptedException, ExecutionException,
 		IOException, ScriptException
 	{
-		final Context context = new Context();
-		final ScriptService scriptService = context.getService(ScriptService.class);
 		final String script = "1 + 2";
 		final ScriptModule m = scriptService.run("add.py", script, true).get();
 		final Object result = m.getLanguage().decode(m.getReturnValue());
@@ -71,9 +85,6 @@ public class JythonTest {
 
 	@Test
 	public void testLocals() throws ScriptException {
-		final Context context = new Context();
-		final ScriptService scriptService = context.getService(ScriptService.class);
-
 		final ScriptLanguage language = scriptService.getLanguageByExtension("py");
 		final ScriptEngine engine = language.getScriptEngine();
 		assertEquals(JythonScriptEngine.class, engine.getClass());
@@ -90,9 +101,6 @@ public class JythonTest {
 	public void testParameters() throws InterruptedException, ExecutionException,
 		IOException, ScriptException
 	{
-		final Context context = new Context();
-		final ScriptService scriptService = context.getService(ScriptService.class);
-
 		final String script = "" + //
 			"# @ScriptService ss\n" + //
 			"# @OUTPUT String language\n" + //
@@ -129,9 +137,6 @@ public class JythonTest {
 	public void testLongType() throws InterruptedException, ExecutionException,
 		IOException, ScriptException
 	{
-		final Context context = new Context();
-		final ScriptService scriptService = context.getService(ScriptService.class);
-
 		final String script = "" + //
 			"# @OUTPUT String varType\n" + //
 			"a = 10L\n" + //
