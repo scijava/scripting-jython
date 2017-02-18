@@ -63,15 +63,6 @@ public class JythonScriptLanguage extends AdaptedScriptLanguage {
 	}
 
 	@Override
-	public ScriptEngine getScriptEngine() {
-		// NB: recursive priorities can only be resolved via inter-service
-		// dependencies. There is no way to make the ScriptService
-		// depend on the JythonService because of the hierarchy
-		// of components. So we have to get the JythonService indirectly.
-		return context.service(JythonService.class).getScriptEngine();
-	}
-
-	@Override
 	public Object decode(final Object object) {
 		if (object instanceof PyNone) return null;
 		if (object instanceof PyBoolean) {
