@@ -36,6 +36,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 
 import java.io.IOException;
+import java.math.BigInteger;
 import java.util.concurrent.ExecutionException;
 
 import javax.script.Bindings;
@@ -147,5 +148,23 @@ public class JythonTest {
 		final Object actual = m.getOutput("varType");
 		final String expected = "<type 'long'>";
 		assertEquals(expected, actual);
+	}
+
+	@Test
+	public void testEval() throws ScriptException {
+		final ScriptLanguage language = scriptService.getLanguageByExtension("py");
+		final ScriptEngine engine = language.getScriptEngine();
+		assertEquals(PyScriptEngine.class, engine.getClass());
+
+		final Object sum = engine.eval("2 + 3");
+		assertEquals(5, sum);
+
+		final String n1 = "112233445566778899";
+		final String n2 = "998877665544332211";
+		final Object bigNum = engine.eval(n1 + "*" + n2);
+		assertEquals(new BigInteger(n1).multiply(new BigInteger(n2)), bigNum);
+
+		final Object varAssign = engine.eval("a = 4 + 5");
+		assertNull(varAssign);
 	}
 }
