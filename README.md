@@ -1,4 +1,4 @@
-[![](http://jenkins.imagej.net/job/scripting-Jython/lastBuild/badge/icon)](http://jenkins.imagej.net/job/scripting-Jython/)
+[![](https://travis-ci.org/scijava/scripting-jython.svg?branch=master)](https://travis-ci.org/scijava/scripting-jython)
 
 # Jython Scripting
 

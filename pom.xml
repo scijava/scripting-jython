@@ -77,8 +77,8 @@
 		<url>https://github.com/scijava/scripting-jython/issues</url>
 	</issueManagement>
 	<ciManagement>
-		<system>Jenkins</system>
-		<url>http://jenkins.imagej.net/job/scripting-Jython/</url>
+		<system>Travis CI</system>
+		<url>https://travis-ci.org/scijava/scripting-jython</url>
 	</ciManagement>
 
 	<properties>
