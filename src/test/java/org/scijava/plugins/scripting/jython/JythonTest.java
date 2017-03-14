@@ -36,6 +36,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 
 import java.io.IOException;
+import java.math.BigInteger;
 import java.util.concurrent.ExecutionException;
 
 import javax.script.Bindings;
@@ -43,7 +44,10 @@ import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.ScriptException;
 
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
+import org.python.jsr223.PyScriptEngine;
 import org.scijava.Context;
 import org.scijava.script.ScriptLanguage;
 import org.scijava.script.ScriptModule;
@@ -56,12 +60,24 @@ import org.scijava.script.ScriptService;
  */
 public class JythonTest {
 
+	private Context context;
+	private ScriptService scriptService;
+
+	@Before
+	public void setUp() {
+		context = new Context();
+		scriptService = context.getService(ScriptService.class);
+	}
+
+	@After
+	public void tearDown() {
+		context.dispose();
+	}
+
 	@Test
 	public void testBasic() throws InterruptedException, ExecutionException,
 		IOException, ScriptException
 	{
-		final Context context = new Context();
-		final ScriptService scriptService = context.getService(ScriptService.class);
 		final String script = "1 + 2";
 		final ScriptModule m = scriptService.run("add.py", script, true).get();
 		final Object result = m.getLanguage().decode(m.getReturnValue());
@@ -71,12 +87,9 @@ public class JythonTest {
 
 	@Test
 	public void testLocals() throws ScriptException {
-		final Context context = new Context();
-		final ScriptService scriptService = context.getService(ScriptService.class);
-
 		final ScriptLanguage language = scriptService.getLanguageByExtension("py");
 		final ScriptEngine engine = language.getScriptEngine();
-		assertEquals(JythonScriptEngine.class, engine.getClass());
+		assertEquals(PyScriptEngine.class, engine.getClass());
 		engine.put("hello", 17);
 		assertEquals(17, language.decode(engine.eval("hello")));
 		assertEquals(17, language.decode(engine.get("hello")));
@@ -90,9 +103,6 @@ public class JythonTest {
 	public void testParameters() throws InterruptedException, ExecutionException,
 		IOException, ScriptException
 	{
-		final Context context = new Context();
-		final ScriptService scriptService = context.getService(ScriptService.class);
-
 		final String script = "" + //
 			"# @ScriptService ss\n" + //
 			"# @OUTPUT String language\n" + //
@@ -109,29 +119,26 @@ public class JythonTest {
 	 * Tests that variables assigned a primitive long value have the expected
 	 * type.
 	 * <p>
-	 * There is a crazy bug in {@link org.python.jsr223.PyScriptEngine}, which
-	 * results in variables assigned a long primitive to somehow end up as (or
+	 * There was a crazy bug in {@link PyScriptEngine} version 2.5.3, which
+	 * resulted in variables assigned a long primitive to somehow end up as (or
 	 * appearing to end up as) {@link java.math.BigInteger} instances instead. See
 	 * <a href=
 	 * "http://sourceforge.net/p/jython/mailman/jython-users/thread/54370FE9.5010603%40farowl.co.uk/"
 	 * >this thread on the jython-users mailing list</a> for discussion.
 	 * </p>
 	 * <p>
-	 * This test ensures that that specific problem gets flagged if it occurs. As
-	 * long as we keep using our own Jython {@code ScriptEngine} implementation
-	 * (i.e.: {@link org.scijava.plugins.scripting.jython.JythonScriptEngine}),
-	 * the problem does not occur. But if we switch to the stock JSR-223 Jython
-	 * {@code ScriptEngine} (i.e.: {@link org.python.jsr223.PyScriptEngine}), the
-	 * problem manifests. See {@link JythonScriptLanguage#getScriptEngine()}.
+	 * This test ensures that that specific problem gets flagged if it recurs.
+	 * Previously, to avoid it, we used our own Jython {@code ScriptEngine}
+	 * implementation
+	 * ({@code org.scijava.plugins.scripting.jython.JythonScriptEngine}). But
+	 * since Jython 2.7.0, the stock JSR-223 Jython {@code ScriptEngine} (i.e.:
+	 * {@link org.python.jsr223.PyScriptEngine}) no longer has this issue.
 	 * </p>
 	 */
 	@Test
 	public void testLongType() throws InterruptedException, ExecutionException,
 		IOException, ScriptException
 	{
-		final Context context = new Context();
-		final ScriptService scriptService = context.getService(ScriptService.class);
-
 		final String script = "" + //
 			"# @OUTPUT String varType\n" + //
 			"a = 10L\n" + //
@@ -141,5 +148,23 @@ public class JythonTest {
 		final Object actual = m.getOutput("varType");
 		final String expected = "<type 'long'>";
 		assertEquals(expected, actual);
+	}
+
+	@Test
+	public void testEval() throws ScriptException {
+		final ScriptLanguage language = scriptService.getLanguageByExtension("py");
+		final ScriptEngine engine = language.getScriptEngine();
+		assertEquals(PyScriptEngine.class, engine.getClass());
+
+		final Object sum = engine.eval("2 + 3");
+		assertEquals(5, sum);
+
+		final String n1 = "112233445566778899";
+		final String n2 = "998877665544332211";
+		final Object bigNum = engine.eval(n1 + "*" + n2);
+		assertEquals(new BigInteger(n1).multiply(new BigInteger(n2)), bigNum);
+
+		final Object varAssign = engine.eval("a = 4 + 5");
+		assertNull(varAssign);
 	}
 }
