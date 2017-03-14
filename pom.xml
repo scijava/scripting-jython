@@ -14,7 +14,7 @@
 
 	<name>SciJava Scripting: Jython</name>
 	<description>JSR-223-compliant Jython scripting language plugin.</description>
-	<url>http://scijava.org/</url>
+	<url>https://github.com/scijava/scripting-jython</url>
 	<inceptionYear>2008</inceptionYear>
 	<organization>
 		<name>SciJava</name>
