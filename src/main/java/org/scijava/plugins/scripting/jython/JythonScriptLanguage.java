@@ -39,6 +39,7 @@ import org.python.core.PyInteger;
 import org.python.core.PyNone;
 import org.python.core.PyObject;
 import org.python.core.PyString;
+import org.python.jsr223.JythonScriptEngine;
 import org.scijava.Context;
 import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
@@ -86,4 +87,8 @@ public class JythonScriptLanguage extends AdaptedScriptLanguage {
 		return object;
 	}
 
+	@Override
+	public ScriptEngine getScriptEngine() {
+		return new JythonScriptEngine(this);
+	}
 }

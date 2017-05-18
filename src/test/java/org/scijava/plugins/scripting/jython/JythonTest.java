@@ -47,6 +47,7 @@ import javax.script.ScriptException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.python.jsr223.JythonScriptEngine;
 import org.python.jsr223.PyScriptEngine;
 import org.scijava.Context;
 import org.scijava.script.ScriptLanguage;
@@ -89,7 +90,7 @@ public class JythonTest {
 	public void testLocals() throws ScriptException {
 		final ScriptLanguage language = scriptService.getLanguageByExtension("py");
 		final ScriptEngine engine = language.getScriptEngine();
-		assertEquals(PyScriptEngine.class, engine.getClass());
+		assertEquals(JythonScriptEngine.class, engine.getClass());
 		engine.put("hello", 17);
 		assertEquals(17, language.decode(engine.eval("hello")));
 		assertEquals(17, language.decode(engine.get("hello")));
@@ -151,10 +152,21 @@ public class JythonTest {
 	}
 
 	@Test
+	public void testReturnValues() throws InterruptedException,
+		ExecutionException, IOException, ScriptException
+	{
+		final String script = "p = 1\n555";
+		final ScriptModule m = scriptService.run("script.py", script, true).get();
+		final Object result = m.getLanguage().decode(m.getReturnValue());
+		assertSame(Integer.class, result.getClass());
+		assertEquals(555, result);
+	}
+
+	@Test
 	public void testEval() throws ScriptException {
 		final ScriptLanguage language = scriptService.getLanguageByExtension("py");
 		final ScriptEngine engine = language.getScriptEngine();
-		assertEquals(PyScriptEngine.class, engine.getClass());
+		assertEquals(JythonScriptEngine.class, engine.getClass());
 
 		final Object sum = engine.eval("2 + 3");
 		assertEquals(5, sum);
