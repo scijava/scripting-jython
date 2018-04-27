@@ -89,7 +89,7 @@
 Wisconsin-Madison, Broad Institute of MIT and Harvard, and Max Planck
 Institute of Molecular Cell Biology and Genetics.</license.copyrightOwners>
 
-		<jython.version>2.7.0</jython.version>
+		<jython.version>2.7.1</jython.version>
 		<jython-shaded.version>${jython.version}</jython-shaded.version>
 
 		<!-- NB: Deploy releases to the ImageJ Maven repository. -->
