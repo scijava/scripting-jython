@@ -88,6 +88,7 @@
 		<license.copyrightOwners>Board of Regents of the University of
 Wisconsin-Madison, Broad Institute of MIT and Harvard, and Max Planck
 Institute of Molecular Cell Biology and Genetics.</license.copyrightOwners>
+		<license.excludes>**/script_templates/**</license.excludes>
 
 		<jython.version>2.7.1</jython.version>
 		<jython-shaded.version>${jython.version}</jython-shaded.version>
