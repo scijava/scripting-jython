@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
-		<version>17.1.1</version>
+		<version>24.0.0</version>
 		<relativePath />
 	</parent>
 
@@ -90,11 +90,10 @@ Wisconsin-Madison, Broad Institute of MIT and Harvard, and Max Planck
 Institute of Molecular Cell Biology and Genetics.</license.copyrightOwners>
 		<license.excludes>**/script_templates/**</license.excludes>
 
-		<jython.version>2.7.1</jython.version>
-		<jython-shaded.version>${jython.version}</jython-shaded.version>
-
 		<!-- NB: Deploy releases to the ImageJ Maven repository. -->
 		<releaseProfiles>deploy-to-imagej</releaseProfiles>
+
+		<jython-shaded.version>2.7.1.1</jython-shaded.version>
 	</properties>
 
 	<dependencies>
