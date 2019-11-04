@@ -10,7 +10,7 @@
 	</parent>
 
 	<artifactId>scripting-jython</artifactId>
-	<version>0.4.4-SNAPSHOT</version>
+	<version>0.5.1-SNAPSHOT</version>
 
 	<name>SciJava Scripting: Jython</name>
 	<description>JSR-223-compliant Jython scripting language plugin.</description>
