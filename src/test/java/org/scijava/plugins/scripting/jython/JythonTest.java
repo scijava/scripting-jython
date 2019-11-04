@@ -34,6 +34,7 @@ package org.scijava.plugins.scripting.jython;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -166,5 +167,20 @@ public class JythonTest {
 
 		final Object varAssign = engine.eval("a = 4 + 5");
 		assertNull(varAssign);
+	}
+
+	@Test
+	public void testGetPID() throws InterruptedException, ExecutionException,
+		IOException, ScriptException
+	{
+		final String script = "" + //
+			"#@output Object pid\n" + //
+			"import os\n" + //
+			"pid = os.getpid()\n";
+		final ScriptModule m = scriptService.run("getpid.py", script, true).get();
+
+		final Object pid = m.getOutput("pid");
+		assertTrue(pid instanceof Number);
+		assertTrue(((Number) pid).longValue() > 0);
 	}
 }
