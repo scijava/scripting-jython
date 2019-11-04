@@ -93,7 +93,7 @@ Institute of Molecular Cell Biology and Genetics.</license.copyrightOwners>
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
 		<releaseProfiles>deploy-to-scijava</releaseProfiles>
 
-		<jython-shaded.version>2.7.1.1</jython-shaded.version>
+		<jython-slim.version>2.7.2b2</jython-slim.version>
 	</properties>
 
 	<dependencies>
@@ -105,9 +105,9 @@ Institute of Molecular Cell Biology and Genetics.</license.copyrightOwners>
 
 		<!-- Third-party dependencies -->
 		<dependency>
-			<groupId>org.scijava</groupId>
-			<artifactId>jython-shaded</artifactId>
-			<version>${jython-shaded.version}</version>
+			<groupId>org.python</groupId>
+			<artifactId>jython-slim</artifactId>
+			<version>${jython-slim.version}</version>
 		</dependency>
 
 		<!-- Test dependencies -->
