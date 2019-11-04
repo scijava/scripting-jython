@@ -104,8 +104,8 @@ public class JythonTest {
 		IOException, ScriptException
 	{
 		final String script = "" + //
-			"# @ScriptService ss\n" + //
-			"# @OUTPUT String language\n" + //
+			"#@ ScriptService ss\n" + //
+			"#@output String language\n" + //
 			"language = ss.getLanguageByName('jython').getLanguageName()\n";
 		final ScriptModule m = scriptService.run("hello.py", script, true).get();
 
@@ -140,7 +140,7 @@ public class JythonTest {
 		IOException, ScriptException
 	{
 		final String script = "" + //
-			"# @OUTPUT String varType\n" + //
+			"#@output String varType\n" + //
 			"a = 10L\n" + //
 			"varType = type(a)\n";
 		final ScriptModule m = scriptService.run("longType.py", script, true).get();
