@@ -93,7 +93,7 @@ Institute of Molecular Cell Biology and Genetics.</license.copyrightOwners>
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
 		<releaseProfiles>deploy-to-scijava</releaseProfiles>
 
-		<jython-slim.version>2.7.2b2</jython-slim.version>
+		<jython-slim.version>2.7.2</jython-slim.version>
 	</properties>
 
 	<dependencies>
