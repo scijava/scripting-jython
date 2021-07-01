@@ -1,4 +1,4 @@
-[![](https://travis-ci.org/scijava/scripting-jython.svg?branch=master)](https://travis-ci.org/scijava/scripting-jython)
+[![](https://github.com/scijava/scripting-jython/actions/workflows/build-main.yml/badge.svg)](https://github.com/scijava/scripting-jython/actions/workflows/build-main.yml)
 
 # Jython Scripting
 
