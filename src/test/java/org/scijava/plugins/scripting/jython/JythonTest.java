@@ -36,7 +36,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
-import java.io.IOException;
 import java.math.BigInteger;
 import java.util.concurrent.ExecutionException;
 
@@ -76,12 +75,10 @@ public class JythonTest {
 	}
 
 	@Test
-	public void testBasic() throws InterruptedException, ExecutionException,
-		IOException, ScriptException
-	{
+	public void testBasic() throws InterruptedException, ExecutionException {
 		final String script = "1 + 2";
 		final ScriptModule m = scriptService.run("add.py", script, true).get();
-		final Object result = m.getLanguage().decode(m.getReturnValue());
+		final Object result = m.getInfo().getLanguage().decode(m.getReturnValue());
 		assertSame(Integer.class, result.getClass());
 		assertEquals(3, result);
 	}
@@ -101,9 +98,7 @@ public class JythonTest {
 	}
 
 	@Test
-	public void testParameters() throws InterruptedException, ExecutionException,
-		IOException, ScriptException
-	{
+	public void testParameters() throws InterruptedException, ExecutionException {
 		final String script = "" + //
 			"#@ ScriptService ss\n" + //
 			"#@output String language\n" + //
@@ -137,9 +132,7 @@ public class JythonTest {
 	 * </p>
 	 */
 	@Test
-	public void testLongType() throws InterruptedException, ExecutionException,
-		IOException, ScriptException
-	{
+	public void testLongType() throws InterruptedException, ExecutionException {
 		final String script = "" + //
 			"#@output String varType\n" + //
 			"a = 10L\n" + //
@@ -170,9 +163,7 @@ public class JythonTest {
 	}
 
 	@Test
-	public void testGetPID() throws InterruptedException, ExecutionException,
-		IOException, ScriptException
-	{
+	public void testGetPID() throws InterruptedException, ExecutionException {
 		final String script = "" + //
 			"#@output Object pid\n" + //
 			"import os\n" + //
