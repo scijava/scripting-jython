@@ -52,7 +52,7 @@ import org.scijava.script.ScriptLanguage;
  * @author Mark Hiner
  * @see ScriptEngine
  */
-@Plugin(type = ScriptLanguage.class, name = "Python")
+@Plugin(type = ScriptLanguage.class, name = "Jython")
 public class JythonScriptLanguage extends AdaptedScriptLanguage {
 
 	@Parameter
@@ -78,7 +78,7 @@ public class JythonScriptLanguage extends AdaptedScriptLanguage {
 			return ((PyString) object).getString();
 		}
 		if (object instanceof PyObject) {
-			// Unwrap Python objects when they wrap Java ones.
+			// Unwrap Jython objects when they wrap Java ones.
 			final PyObject pyObj = (PyObject) object;
 			final Class<?> javaType = pyObj.getType().getProxyType();
 			if (javaType != null) return pyObj.__tojava__(javaType);
