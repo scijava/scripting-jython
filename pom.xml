@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
-		<version>27.0.1</version>
+		<version>32.0.0-beta-4</version>
 		<relativePath />
 	</parent>
 
@@ -102,12 +102,20 @@ Institute of Molecular Cell Biology and Genetics.</license.copyrightOwners>
 			<groupId>org.scijava</groupId>
 			<artifactId>scijava-common</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>org.scijava</groupId>
+			<artifactId>script-editor</artifactId>
+		</dependency>
 
 		<!-- Third-party dependencies -->
 		<dependency>
 			<groupId>org.python</groupId>
 			<artifactId>jython-slim</artifactId>
 			<version>${jython-slim.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.fifesoft</groupId>
+			<artifactId>rsyntaxtextarea</artifactId>
 		</dependency>
 
 		<!-- Test dependencies -->
@@ -117,4 +125,10 @@ Institute of Molecular Cell Biology and Genetics.</license.copyrightOwners>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
+	<repositories>
+		<repository>
+			<id>scijava.public</id>
+			<url>https://maven.scijava.org/content/groups/public</url>
+		</repository>
+	</repositories>
 </project>
