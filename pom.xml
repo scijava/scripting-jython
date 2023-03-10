@@ -85,9 +85,7 @@
 		<package-name>org.scijava.plugins.scripting.jython</package-name>
 
 		<license.licenseName>bsd_2</license.licenseName>
-		<license.copyrightOwners>Board of Regents of the University of
-Wisconsin-Madison, Broad Institute of MIT and Harvard, and Max Planck
-Institute of Molecular Cell Biology and Genetics.</license.copyrightOwners>
+		<license.copyrightOwners>SciJava developers.</license.copyrightOwners>
 		<license.excludes>**/script_templates/**</license.excludes>
 
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
