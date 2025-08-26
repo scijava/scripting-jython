@@ -50,7 +50,7 @@ import org.scijava.script.ScriptLanguage;
  * @author Mark Hiner
  * @see ScriptEngine
  */
-@Plugin(type = ScriptLanguage.class, name = "Python (Jython)")
+@Plugin(type = ScriptLanguage.class, name = "Jython")
 public class JythonScriptLanguage extends AdaptedScriptLanguage {
 
 	@Parameter
