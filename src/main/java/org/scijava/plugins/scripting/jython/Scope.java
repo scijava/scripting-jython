@@ -40,6 +40,7 @@ import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -195,32 +196,42 @@ public class Scope {
 		return completions;
 	}
 	
-	/** Return a table of names vs classnames, with classnames being null for python builtins.
+	/**
+	 * Return a table of names vs classnames, sorted by name. The classname is
+	 * non-null only for names bound to a class (e.g. an imported Java class), whose
+	 * constructors can then be offered; it is null for variables, functions and
+	 * python builtins. Names in inner scopes shadow those of outer scopes.
 	 * 
 	 * @param name
 	 * @return
 	 */
 	public Map<String, String> findStartsWith2(final String name) {
-		final Map<String, String> completions = new HashMap<>();
+		final Map<String, String> completions = new TreeMap<>();
 		Scope scope = this;
 		while (null != scope) {
 			for (final Map.Entry<String, DotAutocompletions> e: scope.vars.entrySet()) {
-				if (e.getKey().startsWith(name)) completions.put(e.getKey(), e.getValue().getClassname());
+				if (e.getKey().startsWith(name)) completions.putIfAbsent(e.getKey(), classnameOf(e.getValue()));
 			}
 			for (final Map.Entry<String, DotAutocompletions> e: scope.imports.entrySet()) {
-				if (e.getKey().startsWith(name)) completions.put(e.getKey(), e.getValue().getClassname());
-			}
-			for (String builtinName: indexer.getBindings().keySet()) {
-				if (builtinName.startsWith("__builtin__."))
-					builtinName = builtinName.substring(12); // without the "__builtin__." prefix
-				if (builtinName.startsWith(name)) completions.put(builtinName, null);
+				if (e.getKey().startsWith(name)) completions.putIfAbsent(e.getKey(), classnameOf(e.getValue()));
 			}
 			scope = scope.parent;
 		}
+		for (String builtinName: indexer.getBindings().keySet()) {
+			if (builtinName.startsWith("__builtin__."))
+				builtinName = builtinName.substring(12); // without the "__builtin__." prefix
+			// Skip members of builtin types, e.g. "tuple.__len__"
+			if (builtinName.indexOf('.') >= 0) continue;
+			if (builtinName.startsWith(name)) completions.putIfAbsent(builtinName, null);
+		}
 		return completions;
 	}
-	
 
+	/** The class a name refers to, if it names a class rather than an instance. */
+	private static String classnameOf(final DotAutocompletions da) {
+		return da instanceof StaticDotAutocompletions ? da.getClassname() : null;
+	}
+	
 	/** Find vars by type, recursively upstream the nested scopes, listing first those of the innermost scope.
 	 *
 	 * @param clazz

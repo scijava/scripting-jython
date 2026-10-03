@@ -36,13 +36,13 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import org.scijava.script.complete.ClassIndex;
+import org.scijava.code.api.ClassIndex;
 
 /**
  * A mutable suggestion used internally by the Jython completion engine. It holds
  * the replacement text plus optional documentation and (for callables) parameter
  * and return-type metadata. The {@link JythonCodeCompleter} converts these into
- * toolkit-agnostic {@link org.scijava.script.complete.Completion}s at the
+ * toolkit-agnostic {@link org.scijava.code.api.Completion}s at the
  * boundary.
  *
  * @author Albert Cardona

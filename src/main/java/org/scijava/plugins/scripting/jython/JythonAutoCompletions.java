@@ -33,6 +33,7 @@ import java.lang.reflect.Parameter;
 import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -44,10 +45,10 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.python.indexer.types.NModuleType;
-import org.scijava.script.complete.ClassIndex;
-import org.scijava.script.complete.Completion;
-import org.scijava.script.complete.Completion.TextEdit;
-import org.scijava.script.complete.ParameterChoices;
+import org.scijava.code.api.ClassIndex;
+import org.scijava.code.api.Completion;
+import org.scijava.code.api.Completion.TextEdit;
+import org.scijava.code.api.ParameterChoices;
 
 /**
  * The Jython completion engine: given the code before the caret it analyzes the
@@ -62,7 +63,7 @@ import org.scijava.script.complete.ParameterChoices;
 public class JythonAutoCompletions {
 
 	private static final Pattern
-		nameToken = Pattern.compile("^(.*?[ \\t,\\[=\\(]+)([a-zA-Z_][a-zA-Z0-9_]+)$"),
+		nameToken = Pattern.compile("^(|.*?[ \\t,\\[=\\(+\\-*/%<>!:]+)([a-zA-Z_][a-zA-Z0-9_]*)$"),
 		invocation = Pattern.compile("^(.*?[ \\t]+|)([a-zA-Z_][a-zA-Z0-9_]+\\()$"),
 		dotNameToken = Pattern.compile("^(.*?[ \\t]+|)([a-zA-Z0-9_\\.\\[\\](){}]+)\\.([a-zA-Z0-9_]*)$"),
 		assign = Pattern.compile("^([ \\t]*)(([a-zA-Z_][a-zA-Z0-9_ \\t,]*)[ \\t]+=[ \\t]+(.*))$"),
@@ -75,6 +76,13 @@ public class JythonAutoCompletions {
 		fastImport = Pattern.compile("^(from[ \\t]+)([a-zA-Z_][a-zA-Z0-9._]*)[ \\t]+$"),
 		importStatement = Pattern.compile("^((from[ \\t]+([a-zA-Z0-9._]+)[ \\t]+|[ \\t]*)import[ \\t]+)([a-zA-Z0-9_., \\t]*)$"),
 		simpleClassName = Pattern.compile("^(.*[ \\t]+|)([A-Z_][a-zA-Z0-9_]+)$");
+
+	/** Python 2 (Jython) keywords. */
+	private static final List<String> KEYWORDS = Arrays.asList("and", "as",
+		"assert", "break", "class", "continue", "def", "del", "elif", "else",
+		"except", "exec", "finally", "for", "from", "global", "if", "import", "in",
+		"is", "lambda", "not", "or", "pass", "print", "raise", "return", "try",
+		"while", "with", "yield", "None", "True", "False");
 
 	private final JythonImportFormat formatter = new JythonImportFormat();
 
@@ -100,27 +108,42 @@ public class JythonAutoCompletions {
 	 * which follows {@code codeWithoutLastLine} in the script. {@code
 	 * alreadyEnteredText} is the text the editor will replace.
 	 */
-	public Result completionsFor(String codeWithoutLastLine, final String lastLine,
-		final String alreadyEnteredText)
+	public Result completionsFor(final String codeWithoutLastLine,
+		final String lastLine, final String alreadyEnteredText)
+	{
+		return completionsFor(codeWithoutLastLine, lastLine, alreadyEnteredText,
+			Collections.emptyMap());
+	}
+
+	/**
+	 * As {@link #completionsFor(String, String, String)}, for a script in which
+	 * the given variables are already defined before the code runs (e.g. script
+	 * parameters, or the bindings of a live interpreter).
+	 */
+	public Result completionsFor(final String codeWithoutLastLine,
+		final String lastLine, final String alreadyEnteredText,
+		final Map<String, DotAutocompletions> predefined)
 	{
 		final List<Completion> completions = new ArrayList<>();
 		final int crop = lastLine.length() - alreadyEnteredText.length();
 
 		// 1) AST-based completions (names, members, constructors, invocations).
 		final ParameterChoices choices = astCompletions(codeWithoutLastLine,
-			lastLine, crop, completions);
+			lastLine, crop, predefined, completions);
 
 		// 2) Import and class-name discovery, always appended.
 		importCompletions(alreadyEnteredText, codeWithoutLastLine + lastLine,
 			completions);
 
-		return new Result(completions, choices);
+		return new Result(dedupe(completions), choices);
 	}
 
 	// -- AST-based completions --
 
 	private ParameterChoices astCompletions(String codeWithoutLastLine,
-		final String lastLine, final int crop, final List<Completion> completions)
+		final String lastLine, final int crop,
+		final Map<String, DotAutocompletions> predefined,
+		final List<Completion> completions)
 	{
 		// Precondition: can't expand when empty or ending with any of "[]{},; ".
 		if (lastLine.isEmpty()) return null;
@@ -173,32 +196,43 @@ public class JythonAutoCompletions {
 			return null;
 		}
 
-		// A plain name (variable, function, class) being typed.
+		// A plain name (variable, function, class, keyword) being typed.
 		final Matcher m1 = nameToken.matcher(lastLine);
 		if (m1.find()) {
-			final Scope scope = JythonScriptParser.parseAST(codeWithoutLastLine)
+			final Scope scope = JythonScriptParser.parseAST(codeWithoutLastLine,
+				predefined)
 				.getLast();
+			final String seed = m1.group(2);
 			final String pre = crop > -1 && crop < m1.group(1).length() ? m1.group(1)
 				.substring(crop) : "";
-			final Map<String, String> names = scope.findStartsWith2(m1.group(2));
+			final String head = lastLine.substring(0, lastLine.length() - seed
+				.length());
+			final Map<String, String> names = scope.findStartsWith2(seed);
 			for (final Map.Entry<String, String> e : names.entrySet()) {
+				completions.add(Completion.builder((head + e.getKey()).substring(crop))
+					.kind(Completion.Kind.VARIABLE).build());
 				final String classname = e.getValue();
 				if (null != classname) {
+					// A class: also offer its constructors.
 					try {
 						final Class<?> c = Class.forName(classname);
 						for (final java.lang.reflect.Constructor<?> cons : c
 							.getConstructors())
 						{
-							completions.add(makeDotCompletion(pre, m1.group(2),
+							completions.add(makeDotCompletion(pre, seed,
 								new CompletionText(e.getKey(), c, cons)));
 						}
 					}
-					catch (final ClassNotFoundException cnfe) {
+					catch (final ClassNotFoundException | LinkageError exc) {
 						JythonDev.printTrace("Can't load class: " + classname);
 					}
 				}
-				completions.add(Completion.of((lastLine + e.getKey().substring(m1
-					.group(2).length())).substring(crop)));
+			}
+			for (final String keyword : KEYWORDS) {
+				if (keyword.startsWith(seed) && !keyword.equals(seed)) {
+					completions.add(Completion.builder((head + keyword).substring(crop))
+						.kind(Completion.Kind.KEYWORD).build());
+				}
 			}
 			return scopeChoices(scope);
 		}
@@ -207,7 +241,8 @@ public class JythonAutoCompletions {
 		final Matcher m1c = invocation.matcher(lastLine);
 		if (m1c.find()) {
 			final String name = m1c.group(2).substring(0, m1c.group(2).length() - 1);
-			final Scope scope = JythonScriptParser.parseAST(codeWithoutLastLine)
+			final Scope scope = JythonScriptParser.parseAST(codeWithoutLastLine,
+				predefined)
 				.getLast();
 			final DotAutocompletions da = scope.find(name, DotAutocompletions.EMPTY);
 			if (da instanceof ConstructorAutocompletions) {
@@ -246,7 +281,7 @@ public class JythonAutoCompletions {
 					lastLine.substring(0, start) + varName + " = " + lastLine.substring(
 						start, lastLine.length() - 1 - seed.length());
 			}
-			final Scope scope = JythonScriptParser.parseAST(code);
+			final Scope scope = JythonScriptParser.parseAST(code, predefined);
 			final DotAutocompletions da = scope.getLast().find(varName,
 				DotAutocompletions.EMPTY);
 			final String fullPre = lastLine.substring(crop);
@@ -368,9 +403,12 @@ public class JythonAutoCompletions {
 		final Matcher m3 = simpleClassName.matcher(text);
 		if (m3.find()) {
 			final String pre = m3.group(1);
-			for (final String className : ClassIndex.findSimpleClassNamesStartingWith(
-				m3.group(2)))
-			{
+			final List<String> classNames = ClassIndex
+				.findSimpleClassNamesStartingWith(m3.group(2));
+			// Closest matches first: shortest simple name, then alphabetical.
+			classNames.sort(Comparator.comparingInt((String cn) -> cn.length() - cn
+				.lastIndexOf('.')).thenComparing(Comparator.naturalOrder()));
+			for (final String className : classNames) {
 				final String simpleName = className.substring(className.lastIndexOf(
 					'.') + 1);
 				final String importStmt = formatter.singleToImportStatement(className);
@@ -386,6 +424,19 @@ public class JythonAutoCompletions {
 	}
 
 	// -- Helpers --
+
+	/**
+	 * Removes duplicate completions (same text and parameters), keeping the first
+	 * occurrence, since the AST and class-name analyses can suggest the same thing.
+	 */
+	private static List<Completion> dedupe(final List<Completion> completions) {
+		final java.util.Set<String> seen = new java.util.HashSet<>();
+		final List<Completion> result = new ArrayList<>(completions.size());
+		for (final Completion c : completions) {
+			if (seen.add(c.insertionText() + "\u0000" + c.parameters())) result.add(c);
+		}
+		return result;
+	}
 
 	/** Builds a neutral completion from a {@link CompletionText} and prefix. */
 	private static Completion makeDotCompletion(final String pre,

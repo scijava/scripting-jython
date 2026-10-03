@@ -32,7 +32,7 @@ import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.scijava.script.complete.Completion.TextEdit;
+import org.scijava.code.api.Completion.TextEdit;
 
 /**
  * Parses the {@code import} statements in a Jython script, and computes the

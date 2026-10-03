@@ -28,20 +28,25 @@
  */
 package org.scijava.plugins.scripting.jython;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
+import javax.script.ScriptEngine;
+
 import org.junit.Test;
+import org.scijava.code.api.ClassIndex;
 import org.scijava.Context;
 import org.scijava.script.ScriptLanguage;
 import org.scijava.script.ScriptService;
-import org.scijava.script.complete.CodeCompletionService;
-import org.scijava.script.complete.Completion;
-import org.scijava.script.complete.CompletionRequest;
-import org.scijava.script.complete.CompletionResult;
+import org.scijava.code.api.CodeCompletionService;
+import org.scijava.code.api.Completion;
+import org.scijava.code.api.CompletionRequest;
+import org.scijava.code.api.CompletionResult;
 
 /**
  * Tests that the Jython {@link JythonCodeCompleter} is discovered for the Jython
@@ -77,6 +82,144 @@ public class JythonCompletionTest {
 
 			assertTrue("expected s.length among " + texts, texts.contains("s.length"));
 			assertTrue("expected s.charAt among " + texts, texts.contains("s.charAt"));
+		}
+		finally {
+			ctx.dispose();
+		}
+	}
+
+	@Test
+	public void testNameAtStartOfLine() {
+		final List<String> texts = complete("greeting = \"hi\"\ngree");
+		assertTrue("expected greeting among " + texts, texts.contains("greeting"));
+	}
+
+	@Test
+	public void testVariableNameNotDuplicated() {
+		// A String variable must not also offer String's constructors.
+		final List<String> texts = complete("greeting = \"hi\"\nx = gree");
+		assertEquals(texts.toString(), 1, texts.stream().filter(
+			"greeting"::equals).count());
+		assertFalse("unexpected leading space in " + texts, texts.contains(
+			" greeting"));
+	}
+
+	@Test
+	public void testKeywordsAndBuiltins() {
+		assertTrue(complete("imp").contains("import"));
+		final List<String> texts = complete("x = le");
+		assertTrue("expected len among " + texts, texts.contains("len"));
+		assertFalse("unexpected builtin member in " + texts, texts.stream()
+			.anyMatch(t -> t.contains(".")));
+	}
+
+	@Test
+	public void testImportedClassName() {
+		ClassIndex.ensureCache();
+		final List<String> texts = complete(
+			"from java.util import ArrayList\nArrayList");
+		assertTrue("expected ArrayList among " + texts, texts.contains(
+			"ArrayList"));
+		assertEquals("expected one plain ArrayList among " + texts, 1, texts
+			.stream().filter("ArrayList"::equals).count() - constructorCount(
+				"from java.util import ArrayList\nArrayList"));
+	}
+
+	@Test
+	public void testJdkClassImport() {
+		ClassIndex.ensureCache();
+		final List<String> texts = complete("from java.util import ArrayLi");
+		assertTrue("expected ArrayList import among " + texts, texts.contains(
+			"from java.util import ArrayList"));
+	}
+
+	@Test
+	public void testScriptParameters() {
+		final String header = "" + //
+			"#@ String (label=\"Please enter your name\") name\n" + //
+			"#@output String greeting\n" + //
+			"#@ int count\n" + //
+			"#@ NoSuchType mystery\n";
+		assertTrue(complete(header + "x = na").contains("name"));
+		assertTrue(complete(header + "myst").contains("mystery"));
+		final List<String> nameMembers = complete(header + "name.toUpp");
+		assertTrue("expected name.toUpperCase among " + nameMembers, nameMembers
+			.contains("name.toUpperCase"));
+		// Outputs are known too, even before the script assigns them.
+		assertTrue(complete(header + "greeting.len").contains("greeting.length"));
+		// Primitive parameters complete as their wrapper type.
+		assertTrue(complete(header + "count.intV").contains("count.intValue"));
+	}
+
+	@Test
+	public void testAssignmentShadowsScriptParameter() {
+		final List<String> texts = complete(
+			"#@ String name\nfrom java.util import ArrayList\nname = ArrayList()\nname.ensureCap");
+		assertTrue("expected ArrayList member among " + texts, texts.contains(
+			"name.ensureCapacity"));
+	}
+
+	@Test
+	public void testInterpreterBindings() throws Exception {
+		final Context ctx = new Context();
+		try {
+			final ScriptLanguage jython = ctx.service(ScriptService.class)
+				.getLanguageByName("Jython");
+			final ScriptEngine engine = jython.getScriptEngine();
+			engine.put("injected", new java.util.ArrayList<String>());
+			engine.eval("from java.util import Collections, HashMap\n" +
+				"m = HashMap()\n" +
+				"def helper(): pass\n");
+			final CodeCompletionService service = ctx.service(
+				CodeCompletionService.class);
+
+			assertTrue(complete(service, jython, engine, "m.putIfAb").contains(
+				"m.putIfAbsent"));
+			assertTrue(complete(service, jython, engine, "injected.si").contains(
+				"injected.size"));
+			assertTrue(complete(service, jython, engine, "x = hel").contains(
+				"helper"));
+			// An imported Java class offers its static members.
+			assertTrue(complete(service, jython, engine, "Collections.emptyL")
+				.contains("Collections.emptyList"));
+			// Python internals are not offered.
+			assertFalse(complete(service, jython, engine, "x = __").contains(
+				"__name__"));
+		}
+		finally {
+			ctx.dispose();
+		}
+	}
+
+	// -- Helper methods --
+
+	private static List<String> complete(final CodeCompletionService service,
+		final ScriptLanguage language, final ScriptEngine engine,
+		final String code)
+	{
+		return service.complete(new CompletionRequest(code, language, engine))
+			.completions().stream().map(Completion::insertionText).collect(Collectors
+				.toList());
+	}
+
+	private static List<String> complete(final String code) {
+		return completions(code).stream().map(Completion::insertionText).collect(
+			Collectors.toList());
+	}
+
+	private static long constructorCount(final String code) {
+		return completions(code).stream().filter(c -> c.kind() ==
+			Completion.Kind.METHOD).count();
+	}
+
+	private static List<Completion> completions(final String code) {
+		final Context ctx = new Context(ScriptService.class,
+			CodeCompletionService.class);
+		try {
+			final ScriptLanguage jython = ctx.service(ScriptService.class)
+				.getLanguageByName("Jython");
+			return ctx.service(CodeCompletionService.class).complete(
+				new CompletionRequest(code, jython, null)).completions();
 		}
 		finally {
 			ctx.dispose();
