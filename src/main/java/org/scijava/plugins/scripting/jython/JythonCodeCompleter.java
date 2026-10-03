@@ -28,14 +28,27 @@
  */
 package org.scijava.plugins.scripting.jython;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+import javax.script.Bindings;
+import javax.script.ScriptContext;
+
+import org.python.core.PyJavaType;
+import org.python.core.PyModule;
+import org.python.core.PyObject;
+import org.python.core.PyString;
+import org.scijava.Context;
 import org.scijava.Priority;
 import org.scijava.plugin.Plugin;
 import org.scijava.script.ScriptLanguage;
-import org.scijava.script.complete.AbstractCodeCompleterPlugin;
-import org.scijava.script.complete.ClassIndex;
-import org.scijava.script.complete.CodeCompleterPlugin;
-import org.scijava.script.complete.CompletionRequest;
-import org.scijava.script.complete.CompletionResult;
+import org.scijava.code.api.AbstractCodeCompleterPlugin;
+import org.scijava.code.api.ClassIndex;
+import org.scijava.code.api.CodeCompleterPlugin;
+import org.scijava.code.api.CodeCompletionService;
+import org.scijava.code.api.CompletionRequest;
+import org.scijava.code.api.CompletionResult;
 
 /**
  * Toolkit-agnostic code completion for the Jython language, contributed by the
@@ -78,15 +91,82 @@ public class JythonCodeCompleter extends AbstractCodeCompleterPlugin {
 		final int replaceStart = caret - alreadyEntered.length();
 
 		final JythonAutoCompletions.Result result = engine.completionsFor(
-			codeWithoutLastLine, lastLine, alreadyEntered);
+			codeWithoutLastLine, lastLine, alreadyEntered, predefinedVariables(
+				request));
 		return new CompletionResult(result.completions, replaceStart,
 			result.parameterChoices);
 	}
 
 	/**
+	 * Gets the variables defined before the script's code runs: script
+	 * parameters declared via {@code #@} lines, and, when completing in a live
+	 * interpreter, the engine's bindings (which reflect actual runtime values, so
+	 * they take precedence).
+	 */
+	private Map<String, DotAutocompletions> predefinedVariables(
+		final CompletionRequest request)
+	{
+		final Map<String, DotAutocompletions> vars = new LinkedHashMap<>();
+		final Context context = getContext();
+		final CodeCompletionService completionService = context == null ? null
+			: context.getService(CodeCompletionService.class);
+		if (completionService != null) {
+			completionService.scriptParameters(request.text()).forEach((name,
+				type) -> vars.put(name, new VarDotAutocompletions(boxed(type)
+					.getName())));
+		}
+		final ScriptContext scriptContext = request.context();
+		final Bindings bindings = scriptContext == null ? null : scriptContext
+			.getBindings(ScriptContext.ENGINE_SCOPE);
+		if (bindings != null) {
+			for (final Map.Entry<String, Object> entry : bindings.entrySet()) {
+				final String name = entry.getKey();
+				if (name.startsWith("__") && name.endsWith("__")) continue;
+				vars.put(name, bindingCompletions(entry.getValue()));
+			}
+		}
+		return vars.isEmpty() ? Collections.emptyMap() : vars;
+	}
+
+	/** Describes a live binding value for completion purposes. */
+	private static DotAutocompletions bindingCompletions(final Object value) {
+		if (value instanceof PyJavaType) {
+			// An imported Java class: offer its constructors and static members.
+			final Class<?> c = ((PyJavaType) value).getProxyType();
+			if (c != null) return new StaticDotAutocompletions(c.getName());
+		}
+		if (value instanceof PyModule) {
+			final PyObject name = ((PyModule) value).__findattr__("__name__");
+			if (name instanceof PyString) {
+				return new StaticDotAutocompletions(name.toString());
+			}
+		}
+		if (value == null || value instanceof PyObject) {
+			// A python function, class or instance: known by name only.
+			return new VarDotAutocompletions(null);
+		}
+		return new VarDotAutocompletions(value.getClass().getName());
+	}
+
+	/** Maps primitive types to their wrappers, whose members can be listed. */
+	private static Class<?> boxed(final Class<?> type) {
+		if (!type.isPrimitive()) return type;
+		if (type == int.class) return Integer.class;
+		if (type == long.class) return Long.class;
+		if (type == double.class) return Double.class;
+		if (type == float.class) return Float.class;
+		if (type == boolean.class) return Boolean.class;
+		if (type == char.class) return Character.class;
+		if (type == short.class) return Short.class;
+		if (type == byte.class) return Byte.class;
+		return Object.class; // void
+	}
+
+	/**
 	 * The portion of the current line the editor should replace. Mirrors the
 	 * legacy RSTA logic: a maximal suffix of letters, digits, {@code '.'},
-	 * {@code '_'} and spaces (spaces let "from x import Y" complete as a unit).
+	 * {@code '_'} and spaces (spaces let "from x import Y" complete as a unit),
+	 * excluding leading spaces.
 	 */
 	private static String alreadyEnteredText(final String lastLine) {
 		int start = lastLine.length();
@@ -96,6 +176,8 @@ public class JythonCodeCompleter extends AbstractCodeCompleterPlugin {
 				start--;
 			else break;
 		}
+		// Leading whitespace is not part of what the user is completing.
+		while (start < lastLine.length() && lastLine.charAt(start) == ' ') start++;
 		return lastLine.substring(start);
 	}
 }

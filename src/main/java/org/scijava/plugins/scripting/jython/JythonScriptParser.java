@@ -81,16 +81,32 @@ public class JythonScriptParser
 	 * @return The top-level {@link Scope}, which is empty (see {@link Scope#isEmpty()}) when the code has errors and can't be parsed by {@link ParserFacade#parse(String, CompileMode, String, CompilerFlags)}.
 	 */
 	static public Scope parseAST(final String code) {
+		return parseAST(code, Collections.emptyMap());
+	}
+
+	/**
+	 * Parse valid jython code within a top-level {@link Scope} that already
+	 * defines the given variables, such as script parameters injected by the
+	 * framework or the bindings of a live interpreter. Assignments in the code
+	 * take precedence over these.
+	 * 
+	 * @param code
+	 * @param predefined Variables defined before the code runs.
+	 * 
+	 * @return The top-level {@link Scope}, holding only the predefined variables when the code has errors and can't be parsed by {@link ParserFacade#parse(String, CompileMode, String, CompilerFlags)}.
+	 */
+	static public Scope parseAST(final String code, final Map<String, DotAutocompletions> predefined) {
 		// The code includes from beginning of the file until the point at which an autocompletion is requested.
 		// Therefore, remove the last line, which would fail to parse because it is incomplete
+		final Scope scope = new Scope(null);
+		scope.vars.putAll(predefined);
 		try {
 			final mod m = ParserFacade.parse(code, CompileMode.exec, "<none>", new CompilerFlags());
-			final Scope scope = parseNode(m.getChildren(), null, null);
-			return null == scope ? new Scope(null) : scope;
+			if (null != m.getChildren()) parseNode(scope, m.getChildren(), null);
 		} catch (Throwable t) {
 			JythonDev.printError(t);
-			return new Scope(null);
 		}
+		return scope;
 	}
 
 	/**

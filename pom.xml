@@ -84,11 +84,11 @@
 	<properties>
 		<package-name>org.scijava.plugins.scripting.jython</package-name>
 
-		<!-- TEMP: depend on the in-development scijava-common providing the
-		     org.scijava.script.complete code-completion SPI (Completion,
-		     CodeCompleterPlugin, ClassIndex, ...). Remove once a release
-		     containing it is pinned by pom-scijava. -->
+		<!-- TEMP: in-development versions providing the code intelligence SPI.
+		     scijava-code-api needs ParameterScriptProcessor#setLogger from
+		     scijava-common. Remove once releases are pinned by pom-scijava. -->
 		<scijava-common.version>2.100.2-SNAPSHOT</scijava-common.version>
+		<scijava-code-api.version>0.1.0-SNAPSHOT</scijava-code-api.version>
 
 		<license.licenseName>bsd_2</license.licenseName>
 		<license.copyrightOwners>SciJava developers.</license.copyrightOwners>
@@ -103,6 +103,11 @@
 		<dependency>
 			<groupId>org.scijava</groupId>
 			<artifactId>scijava-common</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.scijava</groupId>
+			<artifactId>scijava-code-api</artifactId>
+			<version>${scijava-code-api.version}</version>
 		</dependency>
 
 		<!-- Third-party dependencies -->
