@@ -84,10 +84,7 @@
 	<properties>
 		<package-name>org.scijava.plugins.scripting.jython</package-name>
 
-		<!-- TEMP: in-development versions providing the code intelligence SPI.
-		     scijava-code-api needs ParameterScriptProcessor#setLogger from
-		     scijava-common. Remove once releases are pinned by pom-scijava. -->
-		<scijava-common.version>2.100.2-SNAPSHOT</scijava-common.version>
+		<scijava-common.version>2.101.0</scijava-common.version>
 		<scijava-code-api.version>0.1.0-SNAPSHOT</scijava-code-api.version>
 
 		<license.licenseName>bsd_2</license.licenseName>
