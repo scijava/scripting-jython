@@ -44,6 +44,7 @@ import org.python.antlr.ast.BinOp;
 import org.python.antlr.ast.Call;
 import org.python.antlr.ast.ClassDef;
 import org.python.antlr.ast.Expr;
+import org.python.antlr.ast.Expression;
 import org.python.antlr.ast.For;
 import org.python.antlr.ast.FunctionDef;
 import org.python.antlr.ast.If;
@@ -360,6 +361,26 @@ public class JythonScriptParser
 	 * @param right
 	 * @param scope
 	 */
+	/**
+	 * Infers the type of a single expression, such as a function argument, in
+	 * the given scope.
+	 * 
+	 * @param expression The source text of the expression.
+	 * @param scope The scope in which to resolve names.
+	 * @return A class name, a primitive type name (e.g. "long" for an integer
+	 *         literal), or null if unknown.
+	 */
+	static public String typeOf(final String expression, final Scope scope) {
+		try {
+			final mod m = ParserFacade.parse(expression, CompileMode.eval, "<none>", new CompilerFlags());
+			if (!(m instanceof Expression)) return null;
+			return parseRight(((Expression) m).getInternalBody(), scope).getClassname();
+		} catch (final Throwable t) {
+			// Incomplete or invalid expression.
+			return null;
+		}
+	}
+
 	static public DotAutocompletions parseRight(final PyObject right, final Scope scope) {
 		if (right instanceof Name) {
 			// e.g. the name of another variable:
