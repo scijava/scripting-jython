@@ -47,6 +47,7 @@ import org.scijava.code.api.CodeCompletionService;
 import org.scijava.code.api.Completion;
 import org.scijava.code.api.CompletionRequest;
 import org.scijava.code.api.CompletionResult;
+import org.scijava.code.api.TypeResolver;
 
 /**
  * Tests that the Jython {@link JythonCodeCompleter} is discovered for the Jython
@@ -195,6 +196,34 @@ public class JythonCompletionTest {
 			// Python internals are not offered.
 			assertFalse(complete(service, jython, engine, "x = __").contains(
 				"__name__"));
+		}
+		finally {
+			ctx.dispose();
+		}
+	}
+
+	@Test
+	public void testArgumentTypes() {
+		final Context ctx = new Context(ScriptService.class,
+			CodeCompletionService.class);
+		try {
+			final ScriptLanguage jython = ctx.service(ScriptService.class)
+				.getLanguageByName("Jython");
+			final String code = "#@ String name\n" + //
+				"from java.util import ArrayList\n" + //
+				"x = 1.5\n" + //
+				"lst = ArrayList()\n" + //
+				"name.";
+			final TypeResolver types = ctx.service(CodeCompletionService.class)
+				.complete(new CompletionRequest(code, jython, null)).typeResolver();
+			assertNotNull(types);
+			assertEquals("long", types.typeOf("1"));
+			assertEquals("double", types.typeOf("x"));
+			assertEquals("java.lang.String", types.typeOf("name"));
+			assertEquals("java.lang.String", types.typeOf("'hi'"));
+			assertEquals("java.util.ArrayList", types.typeOf("lst"));
+			assertEquals(null, types.typeOf("undefinedThing"));
+			assertEquals(null, types.typeOf("1 +"));
 		}
 		finally {
 			ctx.dispose();

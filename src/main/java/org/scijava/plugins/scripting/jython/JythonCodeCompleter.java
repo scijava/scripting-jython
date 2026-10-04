@@ -94,7 +94,7 @@ public class JythonCodeCompleter extends AbstractCodeCompleterPlugin {
 			codeWithoutLastLine, lastLine, alreadyEntered, predefinedVariables(
 				request));
 		return new CompletionResult(result.completions, replaceStart,
-			result.parameterChoices);
+			result.parameterChoices, result.typeResolver);
 	}
 
 	/**

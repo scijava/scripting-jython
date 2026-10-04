@@ -49,6 +49,7 @@ import org.scijava.code.api.ClassIndex;
 import org.scijava.code.api.Completion;
 import org.scijava.code.api.Completion.TextEdit;
 import org.scijava.code.api.ParameterChoices;
+import org.scijava.code.api.TypeResolver;
 
 /**
  * The Jython completion engine: given the code before the caret it analyzes the
@@ -89,17 +90,23 @@ public class JythonAutoCompletions {
 	/** Python standard library module names, discovered from the jython jar. */
 	private static final List<String> jython_jar_modules = findJythonModules();
 
-	/** Result of a completion query: the suggestions plus optional choices. */
+	/**
+	 * Result of a completion query: the suggestions plus optional choices and
+	 * argument type resolution.
+	 */
 	public static final class Result {
 
 		public final List<Completion> completions;
 		public final ParameterChoices parameterChoices;
+		public final TypeResolver typeResolver;
 
 		Result(final List<Completion> completions,
-			final ParameterChoices parameterChoices)
+			final ParameterChoices parameterChoices,
+			final TypeResolver typeResolver)
 		{
 			this.completions = completions;
 			this.parameterChoices = parameterChoices;
+			this.typeResolver = typeResolver;
 		}
 	}
 
@@ -128,19 +135,22 @@ public class JythonAutoCompletions {
 		final int crop = lastLine.length() - alreadyEnteredText.length();
 
 		// 1) AST-based completions (names, members, constructors, invocations).
-		final ParameterChoices choices = astCompletions(codeWithoutLastLine,
-			lastLine, crop, predefined, completions);
+		final Scope scope = astCompletions(codeWithoutLastLine, lastLine, crop,
+			predefined, completions);
 
 		// 2) Import and class-name discovery, always appended.
 		importCompletions(alreadyEnteredText, codeWithoutLastLine + lastLine,
 			completions);
 
-		return new Result(dedupe(completions), choices);
+		if (scope == null) return new Result(dedupe(completions), null, null);
+		return new Result(dedupe(completions), scopeChoices(scope),
+			expression -> JythonScriptParser.typeOf(expression, scope));
 	}
 
 	// -- AST-based completions --
 
-	private ParameterChoices astCompletions(String codeWithoutLastLine,
+	/** Adds AST-based completions, returning the analyzed scope (or null). */
+	private Scope astCompletions(String codeWithoutLastLine,
 		final String lastLine, final int crop,
 		final Map<String, DotAutocompletions> predefined,
 		final List<Completion> completions)
@@ -234,7 +244,7 @@ public class JythonAutoCompletions {
 						.kind(Completion.Kind.KEYWORD).build());
 				}
 			}
-			return scopeChoices(scope);
+			return scope;
 		}
 
 		// A function/constructor invocation: "name(".
@@ -249,7 +259,7 @@ public class JythonAutoCompletions {
 				for (final CompletionText ct : da.get()) {
 					completions.add(makeDotCompletion("", name, ct));
 				}
-				return scopeChoices(scope);
+				return scope;
 			}
 			// Otherwise fall through to dot-name handling below.
 		}
@@ -294,7 +304,7 @@ public class JythonAutoCompletions {
 						.toList());
 			sortCompletions(list, seed);
 			completions.addAll(list);
-			return scopeChoices(scope.getLast());
+			return scope.getLast();
 		}
 
 		return null;
