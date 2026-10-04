@@ -92,10 +92,10 @@ public interface DotAutocompletions {
 	 * @param ac
 	 */
 	static public void fieldsAndMethodsInto(final Class<?> c, final List<CompletionText> ac) {
-		for (final Field f: c.getDeclaredFields())
+		for (final Field f: c.getFields())
 			if (!Modifier.isStatic(f.getModifiers()))
 				ac.add(new CompletionText(f.getName(), c, f));
-		for (final Method m: c.getDeclaredMethods())
+		for (final Method m: c.getMethods())
 			if (!Modifier.isStatic(m.getModifiers()))
 				ac.add(new CompletionText(m.getName() + "()", c, m));
 	}
