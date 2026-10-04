@@ -160,6 +160,16 @@ public class JythonCompletionTest {
 	}
 
 	@Test
+	public void testInheritedMembers() {
+		final List<String> texts = complete(
+				"from java.util import ArrayList\nlist = ArrayList()\nlist.");
+		// members come from superinterfaces
+		assertTrue(texts.contains("list.add"));
+		// members come from superclasses
+		assertTrue(texts.contains("list.toString"));
+	}
+
+	@Test
 	public void testInterpreterBindings() throws Exception {
 		final Context ctx = new Context();
 		try {
