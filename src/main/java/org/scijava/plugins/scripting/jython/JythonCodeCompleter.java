@@ -54,6 +54,7 @@ import org.scijava.code.api.CodeCompletionService;
 import org.scijava.code.api.CompletionRequest;
 import org.scijava.code.api.Completion;
 import org.scijava.code.api.CompletionResult;
+import org.scijava.code.api.ScriptDialect;
 import org.scijava.code.api.SignatureHelp;
 import org.scijava.code.api.Signatures;
 
@@ -71,6 +72,9 @@ import org.scijava.code.api.Signatures;
 @Plugin(type = CodeCompleterPlugin.class, name = "Jython",
 	priority = Priority.HIGH)
 public class JythonCodeCompleter extends AbstractCodeCompleterPlugin {
+
+	/** How scripts see their parameters: as the Java objects themselves. */
+	private static final JythonDialect DIALECT = new JythonDialect();
 
 	private final JythonAutoCompletions engine = new JythonAutoCompletions();
 
@@ -185,8 +189,8 @@ public class JythonCodeCompleter extends AbstractCodeCompleterPlugin {
 			: context.getService(CodeCompletionService.class);
 		if (completionService != null) {
 			completionService.scriptParameters(request.text()).forEach((name,
-				type) -> vars.put(name, new VarDotAutocompletions(boxed(type)
-					.getName())));
+				type) -> vars.put(name, new VarDotAutocompletions(DIALECT.runtimeType(
+					type))));
 		}
 		final ScriptContext scriptContext = request.context();
 		final Bindings bindings = scriptContext == null ? null : scriptContext
@@ -221,18 +225,9 @@ public class JythonCodeCompleter extends AbstractCodeCompleterPlugin {
 		return new VarDotAutocompletions(value.getClass().getName());
 	}
 
-	/** Maps primitive types to their wrappers, whose members can be listed. */
-	private static Class<?> boxed(final Class<?> type) {
-		if (!type.isPrimitive()) return type;
-		if (type == int.class) return Integer.class;
-		if (type == long.class) return Long.class;
-		if (type == double.class) return Double.class;
-		if (type == float.class) return Float.class;
-		if (type == boolean.class) return Boolean.class;
-		if (type == char.class) return Character.class;
-		if (type == short.class) return Short.class;
-		if (type == byte.class) return Byte.class;
-		return Object.class; // void
+	@Override
+	public ScriptDialect dialect() {
+		return DIALECT;
 	}
 
 	/**
