@@ -28,9 +28,13 @@
  */
 package org.scijava.plugins.scripting.jython;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import javax.script.Bindings;
 import javax.script.ScriptContext;
@@ -48,7 +52,10 @@ import org.scijava.code.api.ClassIndex;
 import org.scijava.code.api.CodeCompleterPlugin;
 import org.scijava.code.api.CodeCompletionService;
 import org.scijava.code.api.CompletionRequest;
+import org.scijava.code.api.Completion;
 import org.scijava.code.api.CompletionResult;
+import org.scijava.code.api.SignatureHelp;
+import org.scijava.code.api.Signatures;
 
 /**
  * Toolkit-agnostic code completion for the Jython language, contributed by the
@@ -94,7 +101,73 @@ public class JythonCodeCompleter extends AbstractCodeCompleterPlugin {
 			codeWithoutLastLine, lastLine, alreadyEntered, predefinedVariables(
 				request));
 		return new CompletionResult(result.completions, replaceStart,
-			result.parameterChoices, result.typeResolver);
+			result.parameterChoices);
+	}
+
+	@Override
+	public SignatureHelp signatureHelp(final CompletionRequest request) {
+		final String text = request.text();
+		final int caret = request.offset();
+		if (request.lineToCaret().trim().startsWith("#")) return SignatureHelp.NONE;
+		final int open = Signatures.callStart(text, caret);
+		if (open < 0) return SignatureHelp.NONE;
+		final List<String> args = Signatures.arguments(text, open, caret);
+		if (args == null) return SignatureHelp.NONE;
+
+		// The callee, e.g. "Math.max" or "ArrayList".
+		final String callee = alreadyEnteredText(text.substring(text.lastIndexOf(
+			'\n', open - 1) + 1, open)).trim();
+		if (callee.isEmpty()) return SignatureHelp.NONE;
+
+		// Its signatures: what completion offers for it, as if the caret were
+		// just before the "(" (methods: "Math.max"), or just after it
+		// (constructors: offered by their class's simple name, "ArrayList").
+		final String simpleName = callee.substring(callee.lastIndexOf('.') + 1);
+		JythonAutoCompletions.Result result = null;
+		List<Completion> callables = Collections.emptyList();
+		for (final int at : new int[] { open, open + 1 }) {
+			final String name = at == open ? callee : simpleName;
+			result = completionsAt(request, at);
+			callables = result.completions.stream().filter(c -> c.isCallable() &&
+				stripParens(c.insertionText()).equals(name)).collect(Collectors
+					.toList());
+			if (!callables.isEmpty()) break;
+		}
+		if (callables.isEmpty()) return SignatureHelp.NONE;
+
+		// The types of the arguments before the caret's (which is being typed).
+		final List<String> argTypes = new ArrayList<>();
+		for (int i = 0; i < args.size(); i++) {
+			final String arg = args.get(i).trim();
+			argTypes.add(i == args.size() - 1 || arg.isEmpty() ? null : result.types
+				.apply(arg));
+		}
+		// NB: Reflection lists methods in no particular order: sort them by
+		// their parameter types, so that equally good fits come out the same.
+		final List<Completion> sorted = new ArrayList<>(callables);
+		sorted.sort(Comparator.comparing(c -> c.parameters().stream().map(
+			p -> String.valueOf(p.type())).collect(Collectors.joining(","))));
+		final ClassLoader loader = Thread.currentThread().getContextClassLoader();
+		return new SignatureHelp(Signatures.rateAll(sorted, argTypes, (a,
+			p) -> Signatures.fit(a, p, loader)), args.size() - 1, open);
+	}
+
+	/** Computes completions as if the caret were at the given offset. */
+	private JythonAutoCompletions.Result completionsAt(
+		final CompletionRequest request, final int offset)
+	{
+		final CompletionRequest there = new CompletionRequest(request.text(),
+			offset, request.language(), request.engine(), request.context(), request
+				.path());
+		final String textToCaret = there.textToCaret();
+		final String lastLine = there.lineToCaret();
+		return engine.completionsFor(textToCaret.substring(0, textToCaret
+			.length() - lastLine.length()), lastLine, alreadyEnteredText(lastLine),
+			predefinedVariables(request));
+	}
+
+	private static String stripParens(final String name) {
+		return name.endsWith("()") ? name.substring(0, name.length() - 2) : name;
 	}
 
 	/**
