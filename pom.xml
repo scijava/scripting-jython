@@ -86,6 +86,8 @@
 
 		<scijava-common.version>2.101.0</scijava-common.version>
 		<scijava-code-api.version>0.1.0-SNAPSHOT</scijava-code-api.version>
+		<!-- NB: As Fiji ships, for scijava-code-lsp (lsp4j); newer than pom-scijava 34's. -->
+		<gson.version>2.14.0</gson.version>
 
 		<license.licenseName>bsd_2</license.licenseName>
 		<license.copyrightOwners>SciJava developers.</license.copyrightOwners>
@@ -104,6 +106,11 @@
 		<dependency>
 			<groupId>org.scijava</groupId>
 			<artifactId>scijava-code-api</artifactId>
+			<version>${scijava-code-api.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.scijava</groupId>
+			<artifactId>scijava-code-lsp</artifactId>
 			<version>${scijava-code-api.version}</version>
 		</dependency>
 

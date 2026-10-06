@@ -28,12 +28,22 @@
  */
 package org.scijava.plugins.scripting.jython;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 import javax.script.Bindings;
@@ -54,7 +64,13 @@ import org.scijava.code.api.CodeCompletionService;
 import org.scijava.code.api.CompletionRequest;
 import org.scijava.code.api.Completion;
 import org.scijava.code.api.CompletionResult;
+import org.scijava.code.api.EnvironmentContext;
 import org.scijava.code.api.ScriptDialect;
+import org.scijava.code.api.ScriptDocument;
+import org.scijava.code.lsp.LspClient;
+import org.scijava.code.lsp.LspServers;
+import org.scijava.code.lsp.LspService;
+import org.scijava.code.lsp.PythonLspClient;
 import org.scijava.code.api.SignatureHelp;
 import org.scijava.code.api.Signatures;
 
@@ -75,6 +91,20 @@ public class JythonCodeCompleter extends AbstractCodeCompleterPlugin {
 
 	/** How scripts see their parameters: as the Java objects themselves. */
 	private static final JythonDialect DIALECT = new JythonDialect();
+
+	/**
+	 * How long to wait for the language server before answering without it
+	 * (and updating the answer once its arrives), in milliseconds.
+	 */
+	private static final long BUDGET = Long.getLong(
+		"scijava.jython.completion.budget", 25);
+
+	/** How many completions get signatures, once a word is begun. */
+	private static final int SIGNATURES = 30;
+
+	private LspClient lsp;
+
+	private JavaStubs stubs;
 
 	private final JythonAutoCompletions engine = new JythonAutoCompletions();
 
@@ -104,8 +134,168 @@ public class JythonCodeCompleter extends AbstractCodeCompleterPlugin {
 		final JythonAutoCompletions.Result result = engine.completionsFor(
 			codeWithoutLastLine, lastLine, alreadyEntered, predefinedVariables(
 				request));
-		return new CompletionResult(result.completions, replaceStart,
-			result.parameterChoices);
+		final CompletionResult local = new CompletionResult(result.completions,
+			replaceStart, result.parameterChoices);
+		if (lastLine.trim().startsWith("#")) return local;
+
+		// Also ask a Python language server, if there is one, knowing the Java
+		// packages from stubs: its completions follow Jython's own.
+		final LspClient client = lspClient();
+		if (client == null) return local;
+		// NB: What was typed is replaced as a whole, e.g. "os.pa": the server's
+		// completions of the word ("path") get the qualifier ("os.").
+		int w = alreadyEntered.length();
+		while (w > 0 && Character.isJavaIdentifierPart(alreadyEntered.charAt(w -
+			1))) w--;
+		final String qualifier = alreadyEntered.substring(0, w);
+		final String word = alreadyEntered.substring(w);
+		if (word.isEmpty() && !qualifier.endsWith(".")) return local;
+		final CompletableFuture<List<Completion>> answer;
+		try {
+			// NB: Asked about the word's first character, so that later keystrokes
+			// reuse the answer.
+			answer = client.complete(document(request), uri(request), caret - word
+				.length() + Math.min(1, word.length()), word.isEmpty() ? 0
+					: SIGNATURES);
+		}
+		catch (final RuntimeException exc) {
+			return local; // NB: E.g. no stubs directory.
+		}
+		try {
+			return merge(local, answer.get(BUDGET, TimeUnit.MILLISECONDS), qualifier,
+				word);
+		}
+		catch (final TimeoutException exc) {
+			return local.withUpdate(answer.handle((server, error) -> server == null
+				? null : merge(local, server, qualifier, word)));
+		}
+		catch (final InterruptedException exc) {
+			Thread.currentThread().interrupt();
+		}
+		catch (final ExecutionException | CancellationException exc) {
+			// NB: The server failed; the next request asks again.
+		}
+		return local;
+	}
+
+	@Override
+	public void prepare(final CompletionRequest request) {
+		// Warm up: write the stubs of the packages the script uses, and start
+		// the server, in the background.
+		final LspClient client = lspClient();
+		if (client != null) client.prepare(document(request), uri(request));
+	}
+
+	@Override
+	public void closed(final CompletionRequest request) {
+		final LspClient client;
+		synchronized (this) {
+			client = lsp;
+		}
+		if (client != null) client.close(uri(request));
+	}
+
+	/** Sets the language server client, e.g. to use a fake one in tests. */
+	synchronized void setLspClient(final LspClient lsp) {
+		this.lsp = lsp;
+	}
+
+	/** Sets the stubs, e.g. to write them elsewhere in tests. */
+	synchronized void setStubs(final JavaStubs stubs) {
+		this.stubs = stubs;
+	}
+
+	/**
+	 * Gets the language server client, if a Python language server is offered
+	 * (see {@link LspService}); creating it on first use.
+	 */
+	private synchronized LspClient lspClient() {
+		if (lsp != null) return lsp;
+		final Context context = getContext();
+		final LspService service = context == null ? null : context.getService(
+			LspService.class);
+		final LspServers servers = service == null ? null : service.servers(
+			"python");
+		if (servers == null) return null;
+		lsp = new PythonLspClient(servers);
+		return lsp;
+	}
+
+	/** Gets the stubs of Java packages, creating them on first use. */
+	private synchronized JavaStubs stubs() {
+		if (stubs != null) return stubs;
+		final String dir = System.getProperty("scijava.jython.stubs");
+		stubs = new JavaStubs(dir != null ? new File(dir) : new File(System
+			.getProperty("user.home"), ".cache" + File.separator + "scijava" +
+				File.separator + "jython-stubs"), Thread.currentThread()
+					.getContextClassLoader());
+		return stubs;
+	}
+
+	/**
+	 * Gets the script as plain Python, for the server: its parameters
+	 * declared; searching the stubs of Java packages (written for those it
+	 * imports, and its parameters' types, in the background).
+	 */
+	private ScriptDocument document(final CompletionRequest request) {
+		final Map<String, Class<?>> params = scriptParameters(request.text());
+		final ScriptDocument doc = ScriptDocument.of(request.text(), params,
+			DIALECT, null);
+		final JavaStubs s = stubs();
+		final Set<String> packages = new TreeSet<>(JavaStubs.imports(request
+			.text()));
+		packages.addAll(JythonDialect.packages(doc.parameters().values().stream()
+			.filter(t -> t != null).collect(Collectors.toList())));
+		s.ensure(packages);
+		// NB: The server's own Python (CPython): Jython's standard library is
+		// Python 2's, but most of it is the same.
+		return ScriptDocument.of(request.text(), params, DIALECT,
+			new EnvironmentContext(null, Collections.singletonList(s.dir()
+				.getAbsolutePath()), null));
+	}
+
+	private Map<String, Class<?>> scriptParameters(final String text) {
+		final Context context = getContext();
+		final CodeCompletionService service = context == null ? null : context
+			.getService(CodeCompletionService.class);
+		return service == null ? Collections.emptyMap() : service
+			.scriptParameters(text);
+	}
+
+	/** The URI of the script, for the language server. */
+	private static String uri(final CompletionRequest request) {
+		return LspClient.uri(request.path(), "jython-script.py");
+	}
+
+	/**
+	 * Merges the server's completions (of the word being typed) after Jython's
+	 * own: those Jython does not know already, with the qualifier typed.
+	 */
+	private static CompletionResult merge(final CompletionResult local,
+		final List<Completion> server, final String qualifier, final String word)
+	{
+		if (server == null || server.isEmpty()) return local;
+		final List<Completion> out = new ArrayList<>(local.completions());
+		final Set<String> seen = new HashSet<>();
+		for (final Completion c : out) seen.add(stripParens(c.insertionText()));
+		final boolean importing = qualifier.trim().startsWith("from ") || qualifier
+			.trim().startsWith("import ");
+		for (final Completion c : server) {
+			final String name = c.insertionText();
+			if (!name.toLowerCase(Locale.ROOT).startsWith(word.toLowerCase(
+				Locale.ROOT)) || name.equals(word)) continue;
+			if (name.startsWith("_") && !word.startsWith("_")) continue;
+			if (!seen.add(qualifier + name)) continue;
+			// NB: An import names things rather than calling them.
+			final Completion.Kind kind = importing && c.isCallable()
+				? Completion.Kind.OTHER : c.kind();
+			out.add(Completion.builder(qualifier + name).kind(kind)
+				.parameters(importing ? Collections.emptyList() : c.parameters())
+				.returnType(c.returnType()).summary(c.summary()).lazyDescription(
+					c::description).build());
+		}
+		return new CompletionResult(out, local.replaceStart(), local
+			.parameterChoices());
 	}
 
 	@Override
