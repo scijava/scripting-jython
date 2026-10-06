@@ -47,7 +47,7 @@ import org.scijava.code.api.CodeCompletionService;
 import org.scijava.code.api.Completion;
 import org.scijava.code.api.CompletionRequest;
 import org.scijava.code.api.CompletionResult;
-import org.scijava.code.api.TypeResolver;
+import org.scijava.code.api.SignatureHelp;
 
 /**
  * Tests that the Jython {@link JythonCodeCompleter} is discovered for the Jython
@@ -203,31 +203,48 @@ public class JythonCompletionTest {
 	}
 
 	@Test
-	public void testArgumentTypes() {
+	public void testSignatureHelp() {
+		// A Python float fits the floating-point overloads, which come first.
+		final SignatureHelp max = help("from java.lang import Math\n" +
+			"Math.max(1.5, ");
+		assertEquals(1, max.activeParameter());
+		assertEquals("[double:MATCH, float:MATCH, int:MISMATCH, long:MISMATCH]",
+			describe(max));
+		// A Python int fits the integral ones, and converts to the others.
+		assertEquals("[int:MATCH, long:MATCH, double:CONVERSION, " +
+			"float:CONVERSION]", describe(help("from java.lang import Math\n" +
+				"Math.max(1, 2")));
+		// Arguments' types come from the analysis, e.g. of variables.
+		final SignatureHelp indexOf = help("s = 'abc'\nc = 'b'\n" +
+			"s.indexOf(c, ");
+		assertTrue(describe(indexOf), describe(indexOf).startsWith(
+			"[java.lang.String:MATCH"));
+		// Constructors.
+		assertTrue(describe(help("from java.util import ArrayList\n" +
+			"ArrayList(")).contains("java.util.Collection"));
+		// None outside calls.
+		assertTrue(help("x = 1").isEmpty());
+	}
+
+	private static SignatureHelp help(final String code) {
 		final Context ctx = new Context(ScriptService.class,
 			CodeCompletionService.class);
 		try {
 			final ScriptLanguage jython = ctx.service(ScriptService.class)
 				.getLanguageByName("Jython");
-			final String code = "#@ String name\n" + //
-				"from java.util import ArrayList\n" + //
-				"x = 1.5\n" + //
-				"lst = ArrayList()\n" + //
-				"name.";
-			final TypeResolver types = ctx.service(CodeCompletionService.class)
-				.complete(new CompletionRequest(code, jython, null)).typeResolver();
-			assertNotNull(types);
-			assertEquals("long", types.typeOf("1"));
-			assertEquals("double", types.typeOf("x"));
-			assertEquals("java.lang.String", types.typeOf("name"));
-			assertEquals("java.lang.String", types.typeOf("'hi'"));
-			assertEquals("java.util.ArrayList", types.typeOf("lst"));
-			assertEquals(null, types.typeOf("undefinedThing"));
-			assertEquals(null, types.typeOf("1 +"));
+			return ctx.service(CodeCompletionService.class).getCompleter(jython)
+				.signatureHelp(new CompletionRequest(code, jython, null));
 		}
 		finally {
 			ctx.dispose();
 		}
+	}
+
+	/** Each signature's first parameter type and fit, in order. */
+	private static String describe(final SignatureHelp help) {
+		return help.signatures().stream().map(s -> (s.callable().parameters()
+			.isEmpty() ? "()" : s.callable().parameters().get(0).type()) + ":" + s
+				.fit()).collect(Collectors.toList()).toString();
 	}
 
 	// -- Helper methods --

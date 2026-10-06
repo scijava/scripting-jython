@@ -42,6 +42,7 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.python.indexer.types.NModuleType;
@@ -49,7 +50,6 @@ import org.scijava.code.api.ClassIndex;
 import org.scijava.code.api.Completion;
 import org.scijava.code.api.Completion.TextEdit;
 import org.scijava.code.api.ParameterChoices;
-import org.scijava.code.api.TypeResolver;
 
 /**
  * The Jython completion engine: given the code before the caret it analyzes the
@@ -98,15 +98,16 @@ public class JythonAutoCompletions {
 
 		public final List<Completion> completions;
 		public final ParameterChoices parameterChoices;
-		public final TypeResolver typeResolver;
+		/** The type (name) of an expression in the analyzed scope, or null. */
+		public final Function<String, String> types;
 
 		Result(final List<Completion> completions,
 			final ParameterChoices parameterChoices,
-			final TypeResolver typeResolver)
+			final Function<String, String> types)
 		{
 			this.completions = completions;
 			this.parameterChoices = parameterChoices;
-			this.typeResolver = typeResolver;
+			this.types = types;
 		}
 	}
 
