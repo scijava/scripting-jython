@@ -31,56 +31,61 @@ package org.scijava.plugins.scripting.jython;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import javax.script.ScriptEngine;
 
+import org.eclipse.lsp4j.CompletionItem;
+import org.eclipse.lsp4j.CompletionParams;
+import org.eclipse.lsp4j.DidCloseTextDocumentParams;
+import org.eclipse.lsp4j.DidOpenTextDocumentParams;
+import org.eclipse.lsp4j.SignatureHelp;
+import org.eclipse.lsp4j.SignatureHelpParams;
+import org.eclipse.lsp4j.TextDocumentIdentifier;
+import org.eclipse.lsp4j.TextDocumentItem;
 import org.junit.Test;
-import org.scijava.code.api.ClassIndex;
 import org.scijava.Context;
+import org.scijava.code.api.ClassIndex;
+import org.scijava.code.api.CodeCompletionService;
+import org.scijava.code.lsp.LanguageServerService;
+import org.scijava.code.lsp.LspClient;
+import org.scijava.code.lsp.MergedLanguageServer;
+import org.scijava.code.lsp.RatedSignatureInformation;
 import org.scijava.script.ScriptLanguage;
 import org.scijava.script.ScriptService;
-import org.scijava.code.api.CodeCompletionService;
-import org.scijava.code.api.Completion;
-import org.scijava.code.api.CompletionRequest;
-import org.scijava.code.api.CompletionResult;
-import org.scijava.code.api.SignatureHelp;
 
 /**
- * Tests that the Jython {@link JythonCodeCompleter} is discovered for the Jython
- * language and produces member completions via the SciJava completion SPI, with
- * no dependency on the Swing script editor.
+ * Tests {@link JythonLanguageServer}, through the
+ * {@link LanguageServerService}, as editors use it.
  *
  * @author Curtis Rueden
  */
 public class JythonCompletionTest {
 
+	private static final String URI = "untitled:/test.py";
+
 	@Test
 	public void testMemberCompletionViaService() {
 		final Context ctx = new Context(ScriptService.class,
-			CodeCompletionService.class);
+			CodeCompletionService.class, LanguageServerService.class);
 		try {
-			final ScriptService scriptService = ctx.service(ScriptService.class);
-			final CodeCompletionService completion = ctx.service(
-				CodeCompletionService.class);
-
-			final ScriptLanguage jython = scriptService.getLanguageByName("Jython");
+			final ScriptLanguage jython = ctx.service(ScriptService.class)
+				.getLanguageByName("Jython");
 			assertNotNull("Jython language not found", jython);
 
-			// The Jython completer must be discovered and claim the Jython language.
-			assertNotNull("JythonCodeCompleter not registered for Jython", //
-				completion.getCompleterPlugin(jython));
+			// A Jython server must be offered for the Jython language.
+			final LanguageServerService servers = ctx.service(
+				LanguageServerService.class);
+			assertTrue(servers.supports(jython));
 
 			// Static analysis: 's' is a String, so 's.' completes to String members.
-			final String code = "s = \"hello\"\ns.";
-			final CompletionResult result = completion.complete(//
-				new CompletionRequest(code, jython, null));
-			final List<String> texts = result.completions().stream().map(
-				Completion::insertionText).collect(Collectors.toList());
-
+			final List<String> texts = labels(items(servers.server(jython),
+				"s = \"hello\"\ns."));
 			assertTrue("expected s.length among " + texts, texts.contains("s.length"));
 			assertTrue("expected s.charAt among " + texts, texts.contains("s.charAt"));
 		}
@@ -117,13 +122,15 @@ public class JythonCompletionTest {
 	@Test
 	public void testImportedClassName() {
 		ClassIndex.ensureCache();
-		final List<String> texts = complete(
+		final List<CompletionItem> items = completions(
 			"from java.util import ArrayList\nArrayList");
+		final List<String> texts = labels(items);
 		assertTrue("expected ArrayList among " + texts, texts.contains(
 			"ArrayList"));
-		assertEquals("expected one plain ArrayList among " + texts, 1, texts
-			.stream().filter("ArrayList"::equals).count() - constructorCount(
-				"from java.util import ArrayList\nArrayList"));
+		// Once as a name; otherwise as its constructors.
+		assertEquals("expected one plain ArrayList among " + texts, 1, items
+			.stream().filter(c -> c.getLabel().equals("ArrayList") && c
+				.getLabelDetails() == null).count());
 	}
 
 	@Test
@@ -171,6 +178,27 @@ public class JythonCompletionTest {
 	}
 
 	@Test
+	public void testCallablesAreSnippets() {
+		final CompletionItem charAt = completions("s = 'x'\ns.charA").stream()
+			.filter(c -> c.getLabel().equals("s.charAt")).findFirst().orElse(null);
+		assertNotNull(charAt);
+		assertEquals("(int arg0)", charAt.getLabelDetails().getDetail().replaceAll(
+			" \\w+\\)$", " arg0)"));
+		assertTrue(charAt.getTextEdit().getLeft().getNewText().startsWith(
+			"s.charAt(${1:"));
+	}
+
+	@Test
+	public void testArgumentChoices() {
+		// In a call's arguments: the variables of the parameter's type first.
+		final List<CompletionItem> items = completions(
+			"from java.lang import Math\nx = 1.5\ny = 'a'\nMath.abs(");
+		assertTrue(items.toString(), !items.isEmpty());
+		assertEquals("x", items.get(0).getLabel());
+		assertEquals(Boolean.TRUE, items.get(0).getPreselect());
+	}
+
+	@Test
 	public void testInterpreterBindings() throws Exception {
 		final Context ctx = new Context();
 		try {
@@ -181,21 +209,19 @@ public class JythonCompletionTest {
 			engine.eval("from java.util import Collections, HashMap\n" +
 				"m = HashMap()\n" +
 				"def helper(): pass\n");
-			final CodeCompletionService service = ctx.service(
-				CodeCompletionService.class);
+			final MergedLanguageServer server = ctx.service(
+				LanguageServerService.class).server(jython, engine.getContext());
 
-			assertTrue(complete(service, jython, engine, "m.putIfAb").contains(
+			assertTrue(labels(items(server, "m.putIfAb")).contains(
 				"m.putIfAbsent"));
-			assertTrue(complete(service, jython, engine, "injected.si").contains(
+			assertTrue(labels(items(server, "injected.si")).contains(
 				"injected.size"));
-			assertTrue(complete(service, jython, engine, "x = hel").contains(
-				"helper"));
+			assertTrue(labels(items(server, "x = hel")).contains("helper"));
 			// An imported Java class offers its static members.
-			assertTrue(complete(service, jython, engine, "Collections.emptyL")
-				.contains("Collections.emptyList"));
+			assertTrue(labels(items(server, "Collections.emptyL")).contains(
+				"Collections.emptyList"));
 			// Python internals are not offered.
-			assertFalse(complete(service, jython, engine, "x = __").contains(
-				"__name__"));
+			assertFalse(labels(items(server, "x = __")).contains("__name__"));
 		}
 		finally {
 			ctx.dispose();
@@ -207,7 +233,7 @@ public class JythonCompletionTest {
 		// A Python float fits the floating-point overloads, which come first.
 		final SignatureHelp max = help("from java.lang import Math\n" +
 			"Math.max(1.5, ");
-		assertEquals(1, max.activeParameter());
+		assertEquals(Integer.valueOf(1), max.getActiveParameter());
 		assertEquals("[double:MATCH, float:MATCH, int:MISMATCH, long:MISMATCH]",
 			describe(max));
 		// A Python int fits the integral ones, and converts to the others.
@@ -223,17 +249,27 @@ public class JythonCompletionTest {
 		assertTrue(describe(help("from java.util import ArrayList\n" +
 			"ArrayList(")).contains("java.util.Collection"));
 		// None outside calls.
-		assertTrue(help("x = 1").isEmpty());
+		assertNull(help("x = 1"));
 	}
+
+	// -- Helper methods --
 
 	private static SignatureHelp help(final String code) {
 		final Context ctx = new Context(ScriptService.class,
-			CodeCompletionService.class);
+			CodeCompletionService.class, LanguageServerService.class);
 		try {
 			final ScriptLanguage jython = ctx.service(ScriptService.class)
 				.getLanguageByName("Jython");
-			return ctx.service(CodeCompletionService.class).getCompleter(jython)
-				.signatureHelp(new CompletionRequest(code, jython, null));
+			final MergedLanguageServer server = ctx.service(
+				LanguageServerService.class).server(jython);
+			server.didOpen(new DidOpenTextDocumentParams(new TextDocumentItem(URI,
+				"python", 1, code)));
+			return server.signatureHelp(new SignatureHelpParams(
+				new TextDocumentIdentifier(URI), LspClient.position(code, code
+					.length()))).get(30, TimeUnit.SECONDS);
+		}
+		catch (final Exception exc) {
+			throw new RuntimeException(exc);
 		}
 		finally {
 			ctx.dispose();
@@ -242,43 +278,57 @@ public class JythonCompletionTest {
 
 	/** Each signature's first parameter type and fit, in order. */
 	private static String describe(final SignatureHelp help) {
-		return help.signatures().stream().map(s -> (s.callable().parameters()
-			.isEmpty() ? "()" : s.callable().parameters().get(0).type()) + ":" + s
-				.fit()).collect(Collectors.toList()).toString();
-	}
-
-	// -- Helper methods --
-
-	private static List<String> complete(final CodeCompletionService service,
-		final ScriptLanguage language, final ScriptEngine engine,
-		final String code)
-	{
-		return service.complete(new CompletionRequest(code, language, engine))
-			.completions().stream().map(Completion::insertionText).collect(Collectors
-				.toList());
+		return help.getSignatures().stream().map(s -> {
+			final String first = s.getParameters().isEmpty() ? "()" : s
+				.getParameters().get(0).getLabel().getLeft();
+			final String type = first.contains(" ") ? first.substring(0, first
+				.lastIndexOf(' ')) : first;
+			return type + ":" + RatedSignatureInformation.fitOf(s);
+		}).collect(Collectors.toList()).toString();
 	}
 
 	private static List<String> complete(final String code) {
-		return completions(code).stream().map(Completion::insertionText).collect(
-			Collectors.toList());
+		return labels(completions(code));
 	}
 
-	private static long constructorCount(final String code) {
-		return completions(code).stream().filter(c -> c.kind() ==
-			Completion.Kind.METHOD).count();
+	private static List<String> labels(final List<CompletionItem> items) {
+		return items.stream().map(CompletionItem::getLabel).collect(Collectors
+			.toList());
 	}
 
-	private static List<Completion> completions(final String code) {
+	private static List<CompletionItem> completions(final String code) {
 		final Context ctx = new Context(ScriptService.class,
-			CodeCompletionService.class);
+			CodeCompletionService.class, LanguageServerService.class);
 		try {
 			final ScriptLanguage jython = ctx.service(ScriptService.class)
 				.getLanguageByName("Jython");
-			return ctx.service(CodeCompletionService.class).complete(
-				new CompletionRequest(code, jython, null)).completions();
+			return items(ctx.service(LanguageServerService.class).server(jython),
+				code);
 		}
 		finally {
 			ctx.dispose();
+		}
+	}
+
+	private static List<CompletionItem> items(final MergedLanguageServer server,
+		final String code)
+	{
+		server.didOpen(new DidOpenTextDocumentParams(new TextDocumentItem(URI,
+			"python", 1, code)));
+		try {
+			final List<CompletionItem> items = new java.util.ArrayList<>(server
+				.completion(new CompletionParams(new TextDocumentIdentifier(URI),
+					LspClient.position(code, code.length()))).get(30, TimeUnit.SECONDS)
+				.getRight().getItems());
+			items.sort((a, b) -> a.getSortText().compareTo(b.getSortText()));
+			return items;
+		}
+		catch (final Exception exc) {
+			throw new RuntimeException(exc);
+		}
+		finally {
+			server.didClose(new DidCloseTextDocumentParams(
+				new TextDocumentIdentifier(URI)));
 		}
 	}
 }

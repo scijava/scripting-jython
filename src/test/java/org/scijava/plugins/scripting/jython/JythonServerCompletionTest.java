@@ -34,29 +34,25 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.nio.file.Files;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
+import org.eclipse.lsp4j.TextDocumentItem;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.scijava.Context;
 import org.scijava.code.api.CodeCompletionService;
-import org.scijava.code.api.Completion;
-import org.scijava.code.api.CompletionRequest;
-import org.scijava.code.api.ScriptDocument;
-import org.scijava.code.lsp.LspClient;
+import org.scijava.code.lsp.Environment;
+import org.scijava.code.lsp.LanguageServerPlugin;
+import org.scijava.code.lsp.LanguageServerService;
+import org.scijava.plugin.PluginService;
 import org.scijava.script.ScriptLanguage;
 import org.scijava.script.ScriptService;
 
 /**
- * Tests {@link JythonCodeCompleter}'s use of a Python language server, with a
- * fake one.
+ * Tests {@link JythonPythonServerPlugin}: a Python language server's
+ * environment for Jython scripts (Java stubs); and {@link JythonDialect}.
  *
  * @author Gabriel Selzer
  */
@@ -64,19 +60,20 @@ public class JythonServerCompletionTest {
 
 	private Context context;
 	private ScriptLanguage jython;
-	private CodeCompletionService service;
-	private JythonCodeCompleter completer;
+	private JythonPythonServerPlugin plugin;
 	private File stubsDir;
-	private final List<ScriptDocument> asked = new ArrayList<>();
 
 	@Before
 	public void setUp() throws Exception {
-		context = new Context(ScriptService.class, CodeCompletionService.class);
+		context = new Context(ScriptService.class, CodeCompletionService.class,
+			LanguageServerService.class);
 		jython = context.service(ScriptService.class).getLanguageByName("Jython");
-		service = context.service(CodeCompletionService.class);
-		completer = (JythonCodeCompleter) service.getCompleterPlugin(jython);
+		plugin = context.service(PluginService.class).createInstancesOfType(
+			LanguageServerPlugin.class).stream().filter(
+				p -> p instanceof JythonPythonServerPlugin).map(
+					p -> (JythonPythonServerPlugin) p).findFirst().get();
 		stubsDir = Files.createTempDirectory("jython-stubs").toFile();
-		completer.setStubs(new JavaStubs(stubsDir, getClass().getClassLoader(),
+		plugin.setStubs(new JavaStubs(stubsDir, getClass().getClassLoader(),
 			pkg -> Collections.emptyList()));
 	}
 
@@ -87,53 +84,20 @@ public class JythonServerCompletionTest {
 	}
 
 	@Test
-	public void testServerCompletionsMerged() {
-		final Completion dumps = Completion.builder("dumps").kind(
-			Completion.Kind.METHOD).parameters(Collections.singletonList(
-				new Completion.Parameter("obj", null))).build();
-		fake(doc -> Arrays.asList(dumps, Completion.of("dump"), Completion.of(
-			"loads")));
-		final List<Completion> completions = completions("import json\njson.du");
-		final List<String> texts = completions.stream().map(
-			Completion::insertionText).collect(Collectors.toList());
-		// With what was typed before the word; filtered by the word.
-		assertTrue(texts.toString(), texts.contains("json.dumps"));
-		assertTrue(texts.contains("json.dump"));
-		assertFalse(texts.contains("json.loads"));
-		final Completion merged = completions.stream().filter(c -> c
-			.insertionText().equals("json.dumps")).findFirst().get();
-		assertEquals(1, merged.parameters().size());
-
-		// The server sees the script as Python, with the stubs to search.
-		final ScriptDocument doc = asked.get(asked.size() - 1);
-		assertEquals(Collections.singletonList(stubsDir.getAbsolutePath()), doc
-			.environment().searchPaths());
+	public void testOnlyWithAPythonServer() {
+		// NB: No plugin offers a Python server here (scripting-appose-python
+		// does): Jython is served by its own server alone.
+		assertFalse(plugin.supports(jython));
 	}
 
 	@Test
-	public void testJythonFirst() {
-		// Jython knows s is a String: its own completion comes once.
-		fake(doc -> Collections.singletonList(Completion.of("length")));
-		final String code = "#@ String s\ns.len";
-		final List<String> texts = completions(code).stream().map(
-			Completion::insertionText).collect(Collectors.toList());
-		assertEquals(texts.toString(), 1, texts.stream().filter(t -> t.equals(
-			"s.length")).count());
-		// Parameters declared for the server, as Python types.
-		assertTrue(asked.get(0).text().startsWith("s: str\n"));
-	}
-
-	@Test
-	public void testImportsAreNames() {
-		final Completion arrayList = Completion.builder("ArrayList").kind(
-			Completion.Kind.METHOD).parameters(Collections.singletonList(
-				new Completion.Parameter("capacity", "int"))).build();
-		fake(doc -> Collections.singletonList(arrayList));
-		final Completion imported = completions("from java.util import ArrayLi")
-			.stream().filter(c -> c.insertionText().endsWith("ArrayList")).findFirst()
-			.get();
-		assertFalse(imported.parameters().size() > 0 && imported.kind() ==
-			Completion.Kind.METHOD);
+	public void testEnvironment() {
+		// The server's own Python, searching the Java stubs.
+		final Environment env = plugin.environment(new TextDocumentItem(
+			"untitled:/a.py", "python", 1, "from java.util import ArrayList\n"));
+		assertEquals(null, env.interpreter());
+		assertEquals(Collections.singletonList(stubsDir.getAbsolutePath()), env
+			.searchPaths());
 	}
 
 	@Test
@@ -148,26 +112,6 @@ public class JythonServerCompletionTest {
 		assertEquals(Arrays.asList("import java.util", "import net.imglib2.img"),
 			dialect.imports(Arrays.asList("net.imglib2.img.Img", "java.lang.String",
 				"java.util.Map$Entry")));
-	}
-
-	// -- Helper methods --
-
-	private void fake(final Function<ScriptDocument, List<Completion>> answers) {
-		completer.setLspClient(new LspClient(null) {
-
-			@Override
-			public CompletableFuture<List<Completion>> complete(
-				final ScriptDocument doc, final String uri, final int offset,
-				final int resolve)
-			{
-				asked.add(doc);
-				return CompletableFuture.completedFuture(answers.apply(doc));
-			}
-		});
-	}
-
-	private List<Completion> completions(final String code) {
-		return service.complete(new CompletionRequest(code, jython, null))
-			.completions();
+		assertTrue(JythonServerPlugin.isJython(jython));
 	}
 }
