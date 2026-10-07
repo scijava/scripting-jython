@@ -30,7 +30,7 @@ package org.scijava.plugins.scripting.jython;
 
 import org.eclipse.lsp4j.services.LanguageServer;
 import org.scijava.Priority;
-import org.scijava.code.api.CodeCompletionService;
+import org.scijava.code.lsp.LanguageServerService;
 import org.scijava.code.lsp.Environment;
 import org.scijava.code.lsp.LanguageServerPlugin;
 import org.scijava.plugin.Parameter;
@@ -48,7 +48,7 @@ import org.scijava.script.ScriptLanguage;
 public class JythonServerPlugin implements LanguageServerPlugin {
 
 	@Parameter(required = false)
-	private CodeCompletionService completion;
+	private LanguageServerService servers;
 
 	@Override
 	public boolean supports(final ScriptLanguage language) {
@@ -57,7 +57,7 @@ public class JythonServerPlugin implements LanguageServerPlugin {
 
 	@Override
 	public LanguageServer create(final Environment environment) {
-		return new JythonLanguageServer(completion, environment);
+		return new JythonLanguageServer(servers, environment);
 	}
 
 	/** Matches "Jython" and "Python (Jython)", without claiming CPython. */

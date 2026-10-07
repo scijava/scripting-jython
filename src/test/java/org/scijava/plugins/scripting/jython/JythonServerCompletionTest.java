@@ -42,10 +42,9 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.scijava.Context;
-import org.scijava.code.api.CodeCompletionService;
+import org.scijava.code.lsp.LanguageServerService;
 import org.scijava.code.lsp.Environment;
 import org.scijava.code.lsp.LanguageServerPlugin;
-import org.scijava.code.lsp.LanguageServerService;
 import org.scijava.plugin.PluginService;
 import org.scijava.script.ScriptLanguage;
 import org.scijava.script.ScriptService;
@@ -65,8 +64,7 @@ public class JythonServerCompletionTest {
 
 	@Before
 	public void setUp() throws Exception {
-		context = new Context(ScriptService.class, CodeCompletionService.class,
-			LanguageServerService.class);
+		context = new Context(ScriptService.class, LanguageServerService.class);
 		jython = context.service(ScriptService.class).getLanguageByName("Jython");
 		plugin = context.service(PluginService.class).createInstancesOfType(
 			LanguageServerPlugin.class).stream().filter(

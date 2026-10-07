@@ -50,10 +50,9 @@ import org.eclipse.lsp4j.TextDocumentIdentifier;
 import org.eclipse.lsp4j.TextDocumentItem;
 import org.junit.Test;
 import org.scijava.Context;
-import org.scijava.code.api.ClassIndex;
-import org.scijava.code.api.CodeCompletionService;
+import org.scijava.code.lsp.ClassIndex;
 import org.scijava.code.lsp.LanguageServerService;
-import org.scijava.code.lsp.LspClient;
+import org.scijava.code.lsp.Positions;
 import org.scijava.code.lsp.MergedLanguageServer;
 import org.scijava.code.lsp.RatedSignatureInformation;
 import org.scijava.script.ScriptLanguage;
@@ -72,7 +71,7 @@ public class JythonCompletionTest {
 	@Test
 	public void testMemberCompletionViaService() {
 		final Context ctx = new Context(ScriptService.class,
-			CodeCompletionService.class, LanguageServerService.class);
+			LanguageServerService.class);
 		try {
 			final ScriptLanguage jython = ctx.service(ScriptService.class)
 				.getLanguageByName("Jython");
@@ -256,7 +255,7 @@ public class JythonCompletionTest {
 
 	private static SignatureHelp help(final String code) {
 		final Context ctx = new Context(ScriptService.class,
-			CodeCompletionService.class, LanguageServerService.class);
+			LanguageServerService.class);
 		try {
 			final ScriptLanguage jython = ctx.service(ScriptService.class)
 				.getLanguageByName("Jython");
@@ -265,7 +264,7 @@ public class JythonCompletionTest {
 			server.didOpen(new DidOpenTextDocumentParams(new TextDocumentItem(URI,
 				"python", 1, code)));
 			return server.signatureHelp(new SignatureHelpParams(
-				new TextDocumentIdentifier(URI), LspClient.position(code, code
+				new TextDocumentIdentifier(URI), Positions.position(code, code
 					.length()))).get(30, TimeUnit.SECONDS);
 		}
 		catch (final Exception exc) {
@@ -298,7 +297,7 @@ public class JythonCompletionTest {
 
 	private static List<CompletionItem> completions(final String code) {
 		final Context ctx = new Context(ScriptService.class,
-			CodeCompletionService.class, LanguageServerService.class);
+			LanguageServerService.class);
 		try {
 			final ScriptLanguage jython = ctx.service(ScriptService.class)
 				.getLanguageByName("Jython");
@@ -318,7 +317,7 @@ public class JythonCompletionTest {
 		try {
 			final List<CompletionItem> items = new java.util.ArrayList<>(server
 				.completion(new CompletionParams(new TextDocumentIdentifier(URI),
-					LspClient.position(code, code.length()))).get(30, TimeUnit.SECONDS)
+					Positions.position(code, code.length()))).get(30, TimeUnit.SECONDS)
 				.getRight().getItems());
 			items.sort((a, b) -> a.getSortText().compareTo(b.getSortText()));
 			return items;
