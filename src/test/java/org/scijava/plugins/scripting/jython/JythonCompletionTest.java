@@ -35,25 +35,19 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.List;
+import java.util.function.Supplier;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import javax.script.ScriptEngine;
 
 import org.eclipse.lsp4j.CompletionItem;
-import org.eclipse.lsp4j.CompletionParams;
-import org.eclipse.lsp4j.DidCloseTextDocumentParams;
-import org.eclipse.lsp4j.DidOpenTextDocumentParams;
 import org.eclipse.lsp4j.SignatureHelp;
-import org.eclipse.lsp4j.SignatureHelpParams;
-import org.eclipse.lsp4j.TextDocumentIdentifier;
-import org.eclipse.lsp4j.TextDocumentItem;
 import org.junit.Test;
 import org.scijava.Context;
 import org.scijava.code.lsp.ClassIndex;
 import org.scijava.code.lsp.LanguageServerService;
-import org.scijava.code.lsp.Positions;
-import org.scijava.code.lsp.MergedLanguageServer;
+import org.scijava.code.lsp.ScriptSession;
 import org.scijava.code.lsp.RatedSignatureInformation;
 import org.scijava.script.ScriptLanguage;
 import org.scijava.script.ScriptService;
@@ -65,8 +59,6 @@ import org.scijava.script.ScriptService;
  * @author Curtis Rueden
  */
 public class JythonCompletionTest {
-
-	private static final String URI = "untitled:/test.py";
 
 	@Test
 	public void testMemberCompletionViaService() {
@@ -83,7 +75,7 @@ public class JythonCompletionTest {
 			assertTrue(servers.supports(jython));
 
 			// Static analysis: 's' is a String, so 's.' completes to String members.
-			final List<String> texts = labels(items(servers.server(jython),
+			final List<String> texts = labels(items(servers.session(jython),
 				"s = \"hello\"\ns."));
 			assertTrue("expected s.length among " + texts, texts.contains("s.length"));
 			assertTrue("expected s.charAt among " + texts, texts.contains("s.charAt"));
@@ -208,19 +200,21 @@ public class JythonCompletionTest {
 			engine.eval("from java.util import Collections, HashMap\n" +
 				"m = HashMap()\n" +
 				"def helper(): pass\n");
-			final MergedLanguageServer server = ctx.service(
-				LanguageServerService.class).server(jython, engine.getContext());
+			final LanguageServerService servers = ctx.service(
+				LanguageServerService.class);
+			final Supplier<ScriptSession> live = () -> servers.session(jython, engine
+				.getContext());
 
-			assertTrue(labels(items(server, "m.putIfAb")).contains(
+			assertTrue(labels(items(live.get(), "m.putIfAb")).contains(
 				"m.putIfAbsent"));
-			assertTrue(labels(items(server, "injected.si")).contains(
+			assertTrue(labels(items(live.get(), "injected.si")).contains(
 				"injected.size"));
-			assertTrue(labels(items(server, "x = hel")).contains("helper"));
+			assertTrue(labels(items(live.get(), "x = hel")).contains("helper"));
 			// An imported Java class offers its static members.
-			assertTrue(labels(items(server, "Collections.emptyL")).contains(
+			assertTrue(labels(items(live.get(), "Collections.emptyL")).contains(
 				"Collections.emptyList"));
 			// Python internals are not offered.
-			assertFalse(labels(items(server, "x = __")).contains("__name__"));
+			assertFalse(labels(items(live.get(), "x = __")).contains("__name__"));
 		}
 		finally {
 			ctx.dispose();
@@ -259,13 +253,12 @@ public class JythonCompletionTest {
 		try {
 			final ScriptLanguage jython = ctx.service(ScriptService.class)
 				.getLanguageByName("Jython");
-			final MergedLanguageServer server = ctx.service(
-				LanguageServerService.class).server(jython);
-			server.didOpen(new DidOpenTextDocumentParams(new TextDocumentItem(URI,
-				"python", 1, code)));
-			return server.signatureHelp(new SignatureHelpParams(
-				new TextDocumentIdentifier(URI), Positions.position(code, code
-					.length()))).get(30, TimeUnit.SECONDS);
+			try (ScriptSession session = ctx.service(LanguageServerService.class)
+				.session(jython))
+			{
+				return session.signatureHelp(code, code.length()).get(30,
+					TimeUnit.SECONDS);
+			}
 		}
 		catch (final Exception exc) {
 			throw new RuntimeException(exc);
@@ -301,7 +294,7 @@ public class JythonCompletionTest {
 		try {
 			final ScriptLanguage jython = ctx.service(ScriptService.class)
 				.getLanguageByName("Jython");
-			return items(ctx.service(LanguageServerService.class).server(jython),
+			return items(ctx.service(LanguageServerService.class).session(jython),
 				code);
 		}
 		finally {
@@ -309,25 +302,17 @@ public class JythonCompletionTest {
 		}
 	}
 
-	private static List<CompletionItem> items(final MergedLanguageServer server,
+	private static List<CompletionItem> items(final ScriptSession session,
 		final String code)
 	{
-		server.didOpen(new DidOpenTextDocumentParams(new TextDocumentItem(URI,
-			"python", 1, code)));
-		try {
-			final List<CompletionItem> items = new java.util.ArrayList<>(server
-				.completion(new CompletionParams(new TextDocumentIdentifier(URI),
-					Positions.position(code, code.length()))).get(30, TimeUnit.SECONDS)
-				.getRight().getItems());
+		try (ScriptSession s = session) {
+			final List<CompletionItem> items = new java.util.ArrayList<>(s.completion(
+				code, code.length()).get(30, TimeUnit.SECONDS).getItems());
 			items.sort((a, b) -> a.getSortText().compareTo(b.getSortText()));
 			return items;
 		}
 		catch (final Exception exc) {
 			throw new RuntimeException(exc);
-		}
-		finally {
-			server.didClose(new DidCloseTextDocumentParams(
-				new TextDocumentIdentifier(URI)));
 		}
 	}
 }
