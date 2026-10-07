@@ -48,8 +48,8 @@ import org.python.core.PyJavaType;
 import org.python.core.PyModule;
 import org.python.core.PyObject;
 import org.python.core.PyString;
-import org.scijava.code.api.ClassIndex;
-import org.scijava.code.api.CodeCompletionService;
+import org.scijava.code.lsp.ClassIndex;
+import org.scijava.code.lsp.LanguageServerService;
 import org.scijava.code.lsp.Callable;
 import org.scijava.code.lsp.Environment;
 import org.scijava.code.lsp.ScriptLanguageServer;
@@ -77,18 +77,18 @@ public class JythonLanguageServer extends ScriptLanguageServer {
 		new Thread(ClassIndex::ensureCache, "Jython-ClassIndex-warmup").start();
 	}
 
-	private final CodeCompletionService completion;
+	private final LanguageServerService servers;
 	private final JythonAutoCompletions engine = new JythonAutoCompletions();
 
 	/**
-	 * @param completion Reads the scripts' parameters.
+	 * @param servers Reads the scripts' parameters.
 	 * @param environment Where the scripts run (e.g. a live interpreter).
 	 */
-	public JythonLanguageServer(final CodeCompletionService completion,
+	public JythonLanguageServer(final LanguageServerService servers,
 		final Environment environment)
 	{
 		super(environment);
-		this.completion = completion;
+		this.servers = servers;
 	}
 
 	@Override
@@ -230,8 +230,8 @@ public class JythonLanguageServer extends ScriptLanguageServer {
 		final String text)
 	{
 		final Map<String, DotAutocompletions> vars = new LinkedHashMap<>();
-		if (completion != null) {
-			completion.scriptParameters(text).forEach((name,
+		if (servers != null) {
+			servers.scriptParameters(text).forEach((name,
 				type) -> vars.put(name, new VarDotAutocompletions(DIALECT.runtimeType(
 					type))));
 		}

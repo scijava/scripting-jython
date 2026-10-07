@@ -35,7 +35,7 @@ import java.util.regex.Pattern;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.TextEdit;
-import org.scijava.code.lsp.LspClient;
+import org.scijava.code.lsp.Positions;
 
 /**
  * Parses the {@code import} statements in a Jython script, and computes the
@@ -150,7 +150,7 @@ public final class JythonImports {
 		}
 		final int targetLine = imported.isEmpty() ? 0 : lastImportLine + 1;
 		final int offset = offsetOfLine(text, targetLine);
-		final Position at = LspClient.position(text, Math.min(offset, text
+		final Position at = Positions.position(text, Math.min(offset, text
 			.length()));
 		return new TextEdit(new Range(at, at), importStatement + "\n");
 	}

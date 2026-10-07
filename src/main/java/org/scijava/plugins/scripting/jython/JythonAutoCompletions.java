@@ -46,7 +46,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.python.indexer.types.NModuleType;
-import org.scijava.code.api.ClassIndex;
+import org.scijava.code.lsp.ClassIndex;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionItemKind;
 import org.eclipse.lsp4j.MarkupContent;

@@ -44,11 +44,10 @@ import org.eclipse.lsp4j.TextDocumentItem;
 import org.eclipse.lsp4j.services.LanguageClient;
 import org.eclipse.lsp4j.services.LanguageServer;
 import org.scijava.Priority;
-import org.scijava.code.api.CodeCompletionService;
-import org.scijava.code.api.ScriptDocument;
+import org.scijava.code.lsp.LanguageServerService;
+import org.scijava.code.lsp.ScriptDocument;
 import org.scijava.code.lsp.Environment;
 import org.scijava.code.lsp.LanguageServerPlugin;
-import org.scijava.code.lsp.LanguageServerService;
 import org.scijava.code.lsp.TransformingLanguageServer;
 import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
@@ -76,8 +75,6 @@ public class JythonPythonServerPlugin implements LanguageServerPlugin {
 	@Parameter
 	private LanguageServerService servers;
 
-	@Parameter(required = false)
-	private CodeCompletionService completion;
 
 	private JavaStubs stubs;
 
@@ -108,7 +105,7 @@ public class JythonPythonServerPlugin implements LanguageServerPlugin {
 		final LanguageServer python = servers.launch("python", environment);
 		return new TransformingLanguageServer(python, text -> ScriptDocument.of(
 			text, parameters(text), JythonLanguageServer.DIALECT, environment
-				.toContext()))
+				))
 		{
 
 			@Override
@@ -135,7 +132,7 @@ public class JythonPythonServerPlugin implements LanguageServerPlugin {
 	}
 
 	private Map<String, Class<?>> parameters(final String text) {
-		return completion == null ? Collections.emptyMap() : completion
+		return servers == null ? Collections.emptyMap() : servers
 			.scriptParameters(text);
 	}
 

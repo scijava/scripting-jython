@@ -36,14 +36,13 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import org.scijava.code.api.ClassIndex;
+import org.scijava.code.lsp.ClassIndex;
 
 /**
  * A mutable suggestion used internally by the Jython completion engine. It holds
  * the replacement text plus optional documentation and (for callables) parameter
- * and return-type metadata. The {@link JythonCodeCompleter} converts these into
- * toolkit-agnostic {@link org.scijava.code.api.Completion}s at the
- * boundary.
+ * and return-type metadata. {@link JythonAutoCompletions} converts these into
+ * LSP completion items at the boundary.
  *
  * @author Albert Cardona
  */
