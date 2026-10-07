@@ -47,16 +47,20 @@ import java.util.stream.Collectors;
 
 import org.python.indexer.types.NModuleType;
 import org.scijava.code.api.ClassIndex;
-import org.scijava.code.api.Completion;
-import org.scijava.code.api.Completion.TextEdit;
-import org.scijava.code.api.ParameterChoices;
+import org.eclipse.lsp4j.CompletionItem;
+import org.eclipse.lsp4j.CompletionItemKind;
+import org.eclipse.lsp4j.MarkupContent;
+import org.eclipse.lsp4j.MarkupKind;
+import org.eclipse.lsp4j.TextEdit;
+import org.scijava.code.lsp.Callable;
 
 /**
  * The Jython completion engine: given the code before the caret it analyzes the
- * Jython AST (via {@link JythonScriptParser}) and produces toolkit-agnostic
- * {@link Completion}s plus, when relevant, a {@link ParameterChoices} for
- * parameter assistance. Class-name and import completions (including auto-import
- * {@link TextEdit}s) are produced via {@link ClassIndex}.
+ * Jython AST (via {@link JythonScriptParser}) and produces completions (LSP
+ * {@link CompletionItem}s; methods and constructors as {@link Callable}s),
+ * plus the scope's variables by type, for arguments. Class-name and import
+ * completions (including auto-import {@link TextEdit}s) are produced via
+ * {@link ClassIndex}.
  *
  * @author Albert Cardona
  * @author Curtis Rueden
@@ -91,22 +95,23 @@ public class JythonAutoCompletions {
 	private static final List<String> jython_jar_modules = findJythonModules();
 
 	/**
-	 * Result of a completion query: the suggestions plus optional choices and
-	 * argument type resolution.
+	 * Result of a completion query: the suggestions, plus the analyzed scope's
+	 * variables by type, and argument type resolution.
 	 */
 	public static final class Result {
 
-		public final List<Completion> completions;
-		public final ParameterChoices parameterChoices;
+		public final List<CompletionItem> completions;
+		/** The variables of a type (e.g. {@code double}) in scope; or null. */
+		public final Function<String, List<String>> variablesOfType;
 		/** The type (name) of an expression in the analyzed scope, or null. */
 		public final Function<String, String> types;
 
-		Result(final List<Completion> completions,
-			final ParameterChoices parameterChoices,
+		Result(final List<CompletionItem> completions,
+			final Function<String, List<String>> variablesOfType,
 			final Function<String, String> types)
 		{
 			this.completions = completions;
-			this.parameterChoices = parameterChoices;
+			this.variablesOfType = variablesOfType;
 			this.types = types;
 		}
 	}
@@ -132,7 +137,7 @@ public class JythonAutoCompletions {
 		final String lastLine, final String alreadyEnteredText,
 		final Map<String, DotAutocompletions> predefined)
 	{
-		final List<Completion> completions = new ArrayList<>();
+		final List<CompletionItem> completions = new ArrayList<>();
 		final int crop = lastLine.length() - alreadyEnteredText.length();
 
 		// 1) AST-based completions (names, members, constructors, invocations).
@@ -144,7 +149,7 @@ public class JythonAutoCompletions {
 			completions);
 
 		if (scope == null) return new Result(dedupe(completions), null, null);
-		return new Result(dedupe(completions), scopeChoices(scope),
+		return new Result(dedupe(completions), type -> variablesOfType(scope, type),
 			expression -> JythonScriptParser.typeOf(expression, scope));
 	}
 
@@ -154,7 +159,7 @@ public class JythonAutoCompletions {
 	private Scope astCompletions(String codeWithoutLastLine,
 		final String lastLine, final int crop,
 		final Map<String, DotAutocompletions> predefined,
-		final List<Completion> completions)
+		final List<CompletionItem> completions)
 	{
 		// Precondition: can't expand when empty or ending with any of "[]{},; ".
 		if (lastLine.isEmpty()) return null;
@@ -220,8 +225,8 @@ public class JythonAutoCompletions {
 				.length());
 			final Map<String, String> names = scope.findStartsWith2(seed);
 			for (final Map.Entry<String, String> e : names.entrySet()) {
-				completions.add(Completion.builder((head + e.getKey()).substring(crop))
-					.kind(Completion.Kind.VARIABLE).build());
+				completions.add(item((head + e.getKey()).substring(crop),
+					CompletionItemKind.Variable, null));
 				final String classname = e.getValue();
 				if (null != classname) {
 					// A class: also offer its constructors.
@@ -241,8 +246,8 @@ public class JythonAutoCompletions {
 			}
 			for (final String keyword : KEYWORDS) {
 				if (keyword.startsWith(seed) && !keyword.equals(seed)) {
-					completions.add(Completion.builder((head + keyword).substring(crop))
-						.kind(Completion.Kind.KEYWORD).build());
+					completions.add(item((head + keyword).substring(crop),
+						CompletionItemKind.Keyword, null));
 				}
 			}
 			return scope;
@@ -299,7 +304,7 @@ public class JythonAutoCompletions {
 			final String pre = fullPre.substring(0, fullPre.lastIndexOf(seed));
 			final String lowerCaseSeed = seed.toLowerCase();
 
-			final List<Completion> list = da.get().stream().filter(s -> s
+			final List<CompletionItem> list = da.get().stream().filter(s -> s
 				.getReplacementText().toLowerCase().contains(lowerCaseSeed)).map(
 					s -> makeDotCompletion(pre, lowerCaseSeed, s)).collect(Collectors
 						.toList());
@@ -312,12 +317,12 @@ public class JythonAutoCompletions {
 	}
 
 	private void moduleNameCompletions(final String first, final String pkgName,
-		final List<Completion> completions)
+		final List<CompletionItem> completions)
 	{
 		jython_jar_modules.stream().filter(s -> s.startsWith(pkgName)).forEach(s -> //
-		completions.add(Completion.builder(first + " " + s + (first.equals("from")
-			? " import " : "")).description("Python standard library module")
-			.kind(Completion.Kind.IMPORT).build()));
+		completions.add(documented(item(first + " " + s + (first.equals("from")
+			? " import " : ""), CompletionItemKind.Module, null),
+			"Python standard library module")));
 		final String pkgNameFile = pkgName.replace('.', '/');
 		for (final String dir : Scope.indexer.getLoadPath()) {
 			try {
@@ -327,9 +332,9 @@ public class JythonAutoCompletions {
 					.map(s -> (s.endsWith("__init__.py") //
 						? s.substring(dir.length(), s.length() - 12) //
 						: s.substring(dir.length(), s.length() - 3)).replace('/', '.')) //
-					.forEach(s -> completions.add(Completion.builder(first + " " + s +
-						(first.equals("from") ? " import " : "")).description(
-							"Custom python module").kind(Completion.Kind.IMPORT).build()));
+					.forEach(s -> completions.add(documented(item(first + " " + s +
+						(first.equals("from") ? " import " : ""), CompletionItemKind.Module,
+						null), "Custom python module")));
 			}
 			catch (final Exception e) {
 				JythonDev.print("Failed to read jython module file.", e);
@@ -338,13 +343,13 @@ public class JythonAutoCompletions {
 	}
 
 	private void moduleMemberCompletions(final String pkgName,
-		final String member, final List<Completion> completions)
+		final String member, final List<CompletionItem> completions)
 	{
 		final NModuleType mod = Scope.loadPythonModule(pkgName);
 		if (null != mod && !mod.getTable().keySet().isEmpty()) {
 			mod.getTable().keySet().stream().filter(s -> s.startsWith(member)).forEach(
-				s -> completions.add(Completion.builder("from " + pkgName + " import " +
-					s).kind(Completion.Kind.IMPORT).build()));
+				s -> completions.add(item("from " + pkgName + " import " + s,
+					CompletionItemKind.Module, null)));
 			return;
 		}
 		if (null != mod) {
@@ -358,10 +363,9 @@ public class JythonAutoCompletions {
 						if (filename.startsWith(member) && (new File(fdir.getAbsolutePath() +
 							"/" + filename).isDirectory() || filename.endsWith(".py")))
 						{
-							completions.add(Completion.builder("from " + pkgName + " import " +
-								(filename.endsWith(".py") ? filename.substring(0, filename
-									.length() - 3) : filename)).kind(Completion.Kind.IMPORT)
-								.build());
+							completions.add(item("from " + pkgName + " import " + (filename
+								.endsWith(".py") ? filename.substring(0, filename.length() - 3)
+									: filename), CompletionItemKind.Module, null));
 						}
 					}
 				}
@@ -372,7 +376,7 @@ public class JythonAutoCompletions {
 	// -- Import / class-name discovery (with auto-import edits) --
 
 	private void importCompletions(final String text, final String fullCode,
-		final List<Completion> completions)
+		final List<CompletionItem> completions)
 	{
 		if (!ClassIndex.isCacheReady()) return; // don't block
 
@@ -380,14 +384,14 @@ public class JythonAutoCompletions {
 		if (m1.find()) {
 			ClassIndex.findClassNamesContaining(m1.group(3)).map(
 				formatter::singleToImportStatement).forEach(s -> completions.add(
-					Completion.builder(s).kind(Completion.Kind.IMPORT).build()));
+					item(s, CompletionItemKind.Module, null)));
 			return;
 		}
 		final Matcher m1f = fastImport.matcher(text);
 		if (m1f.find()) {
 			ClassIndex.findClassNamesForPackage(m1f.group(2)).map(
 				formatter::singleToImportStatement).forEach(s -> completions.add(
-					Completion.builder(s).kind(Completion.Kind.IMPORT).build()));
+					item(s, CompletionItemKind.Module, null)));
 			return;
 		}
 		final Matcher m2 = importStatement.matcher(text);
@@ -407,8 +411,7 @@ public class JythonAutoCompletions {
 			else stream = ClassIndex.findClassNamesForPackage(packageName);
 			final String pre = m2.group(1) + precomma;
 			stream.map(s -> s.substring(Math.max(0, s.lastIndexOf('.') + 1))).forEach(
-				s -> completions.add(Completion.builder(pre + s).kind(
-					Completion.Kind.IMPORT).build()));
+				s -> completions.add(item(pre + s, CompletionItemKind.Module, null)));
 			return;
 		}
 		final Matcher m3 = simpleClassName.matcher(text);
@@ -426,10 +429,11 @@ public class JythonAutoCompletions {
 				// Side effect on accept: insert the import near the top of the file.
 				final TextEdit edit = JythonImports.autoImportEdit(fullCode, className,
 					importStmt);
-				final Completion.Builder b = Completion.builder(pre + simpleName).kind(
-					Completion.Kind.CLASS).summary(importStmt);
-				if (edit != null) b.additionalEdits(Collections.singletonList(edit));
-				completions.add(b.build());
+				final CompletionItem c = item(pre + simpleName, CompletionItemKind.Class,
+					importStmt);
+				if (edit != null) c.setAdditionalTextEdits(Collections.singletonList(
+					edit));
+				completions.add(c);
 			}
 		}
 	}
@@ -440,40 +444,62 @@ public class JythonAutoCompletions {
 	 * Removes duplicate completions (same text and parameters), keeping the first
 	 * occurrence, since the AST and class-name analyses can suggest the same thing.
 	 */
-	private static List<Completion> dedupe(final List<Completion> completions) {
+	private static List<CompletionItem> dedupe(
+		final List<CompletionItem> completions)
+	{
 		final java.util.Set<String> seen = new java.util.HashSet<>();
-		final List<Completion> result = new ArrayList<>(completions.size());
-		for (final Completion c : completions) {
-			if (seen.add(c.insertionText() + "\u0000" + c.parameters())) result.add(c);
+		final List<CompletionItem> result = new ArrayList<>(completions.size());
+		for (final CompletionItem c : completions) {
+			final String params = c.getLabelDetails() == null ? null : c
+				.getLabelDetails().getDetail();
+			if (seen.add(c.getLabel() + "\u0000" + params)) result.add(c);
 		}
 		return result;
 	}
 
-	/** Builds a neutral completion from a {@link CompletionText} and prefix. */
-	private static Completion makeDotCompletion(final String pre,
+	/** A completion of the given text. */
+	private static CompletionItem item(final String text,
+		final CompletionItemKind kind, final String detail)
+	{
+		final CompletionItem item = new CompletionItem(text);
+		item.setKind(kind);
+		item.setInsertText(text);
+		item.setDetail(detail);
+		return item;
+	}
+
+	private static CompletionItem documented(final CompletionItem item,
+		final String doc)
+	{
+		item.setDocumentation(new MarkupContent(MarkupKind.MARKDOWN, doc));
+		return item;
+	}
+
+	/** Builds a completion from a {@link CompletionText} and prefix. */
+	private static CompletionItem makeDotCompletion(final String pre,
 		final String seed, final CompletionText ct)
 	{
 		final List<Parameter> ps = ct.getMethodArgs();
 		if (null != ps && null != ct.getReturnType()) {
 			String text = ct.getReplacementText();
 			if (text.endsWith("()")) text = text.substring(0, text.length() - 2);
-			final List<Completion.Parameter> params = new ArrayList<>();
+			final List<Callable.Param> params = new ArrayList<>();
 			for (final Parameter p : ps) {
-				params.add(new Completion.Parameter(p.getName(), p.getType()
+				params.add(new Callable.Param(p.getName(), p.getType()
 					.getCanonicalName()));
 			}
-			return Completion.builder(pre + text).kind(Completion.Kind.METHOD)
-				.parameters(params).returnType(ct.getReturnType()).summary(ct
-					.getSummary()).build();
+			return new Callable(pre + text, params, ct.getReturnType()).detail(ct
+				.getSummary()).toItem();
 		}
-		return Completion.builder(pre + ct.getReplacementText()).summary(ct
-			.getSummary()).build();
+		return item(pre + ct.getReplacementText(), CompletionItemKind.Field, ct
+			.getSummary());
 	}
 
-	/** A {@link ParameterChoices} that suggests in-scope variables by type. */
-	private static ParameterChoices scopeChoices(final Scope scope) {
-		return parameter -> {
-			final String type = parameter.type();
+	/** The variables of the given type in scope, innermost first. */
+	private static List<String> variablesOfType(final Scope scope,
+		final String type)
+	{
+		{
 			if (type == null) return Collections.emptyList();
 			Class<?> clazz;
 			switch (type) {
@@ -494,28 +520,20 @@ public class JythonAutoCompletions {
 					}
 			}
 			final Class<?> c = clazz;
-			final List<String> vars = scope.findVarsByType(type, c).collect(Collectors
-				.toList());
-			final List<Completion> out = new ArrayList<>(vars.size());
-			for (int i = 0; i < vars.size(); i++) {
-				// Innermost-scope variables come first; rank them higher.
-				out.add(Completion.builder(vars.get(i)).kind(Completion.Kind.VARIABLE)
-					.relevance(vars.size() - i).build());
-			}
-			return out;
-		};
+			return scope.findVarsByType(type, c).collect(Collectors.toList());
+		}
 	}
 
-	private void sortCompletions(final List<Completion> completions,
+	private void sortCompletions(final List<CompletionItem> completions,
 		final String pre)
 	{
-		completions.sort(new Comparator<Completion>() {
+		completions.sort(new Comparator<CompletionItem>() {
 
 			@Override
-			public int compare(final Completion o1, final Completion o2) {
-				final int p1 = o1.insertionText().startsWith(pre) ? 0 : Integer.MAX_VALUE;
-				final int p2 = o2.insertionText().startsWith(pre) ? 0 : Integer.MAX_VALUE;
-				if (p1 == p2) return o1.insertionText().compareTo(o2.insertionText());
+			public int compare(final CompletionItem o1, final CompletionItem o2) {
+				final int p1 = o1.getLabel().startsWith(pre) ? 0 : Integer.MAX_VALUE;
+				final int p2 = o2.getLabel().startsWith(pre) ? 0 : Integer.MAX_VALUE;
+				if (p1 == p2) return o1.getLabel().compareTo(o2.getLabel());
 				return p1 - p2;
 			}
 		});

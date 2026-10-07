@@ -32,7 +32,10 @@ import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.scijava.code.api.Completion.TextEdit;
+import org.eclipse.lsp4j.Position;
+import org.eclipse.lsp4j.Range;
+import org.eclipse.lsp4j.TextEdit;
+import org.scijava.code.lsp.LspClient;
 
 /**
  * Parses the {@code import} statements in a Jython script, and computes the
@@ -147,7 +150,9 @@ public final class JythonImports {
 		}
 		final int targetLine = imported.isEmpty() ? 0 : lastImportLine + 1;
 		final int offset = offsetOfLine(text, targetLine);
-		return TextEdit.insert(offset, importStatement + "\n");
+		final Position at = LspClient.position(text, Math.min(offset, text
+			.length()));
+		return new TextEdit(new Range(at, at), importStatement + "\n");
 	}
 
 	/** Character offset of the start of the given (0-based) line in {@code text}. */
