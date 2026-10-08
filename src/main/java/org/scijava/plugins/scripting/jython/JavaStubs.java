@@ -59,7 +59,7 @@ import java.util.concurrent.Executors;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import org.scijava.code.lsp.ClassIndex;
+import org.scijava.code.lsp.jvm.ClassIndex;
 
 /**
  * Writes Python type stubs ({@code .pyi}) of Java packages, so that a Python

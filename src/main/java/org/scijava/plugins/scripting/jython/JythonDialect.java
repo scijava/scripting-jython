@@ -34,7 +34,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
-import org.scijava.code.lsp.ScriptDialect;
+import org.scijava.code.lsp.script.ScriptDialect;
 
 /**
  * How Jython scripts see their script parameters: as the Java objects

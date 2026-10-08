@@ -48,12 +48,12 @@ import org.python.core.PyJavaType;
 import org.python.core.PyModule;
 import org.python.core.PyObject;
 import org.python.core.PyString;
-import org.scijava.code.lsp.ClassIndex;
+import org.scijava.code.lsp.jvm.ClassIndex;
 import org.scijava.code.lsp.LanguageServerService;
-import org.scijava.code.lsp.Callable;
+import org.scijava.code.lsp.jvm.Callable;
 import org.scijava.code.lsp.Environment;
-import org.scijava.code.lsp.ScriptLanguageServer;
-import org.scijava.code.lsp.Signatures;
+import org.scijava.code.lsp.jvm.ScriptLanguageServer;
+import org.scijava.code.lsp.jvm.Signatures;
 
 /**
  * An in-process language server for Jython, driven by Jython's own analysis
