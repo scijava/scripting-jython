@@ -45,7 +45,7 @@ import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.SignatureHelp;
 import org.junit.Test;
 import org.scijava.Context;
-import org.scijava.code.lsp.ClassIndex;
+import org.scijava.code.lsp.jvm.ClassIndex;
 import org.scijava.code.lsp.LanguageServerService;
 import org.scijava.code.lsp.ScriptSession;
 import org.scijava.code.lsp.RatedSignatureInformation;

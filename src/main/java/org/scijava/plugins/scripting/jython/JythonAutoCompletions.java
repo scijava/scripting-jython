@@ -46,13 +46,13 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.python.indexer.types.NModuleType;
-import org.scijava.code.lsp.ClassIndex;
+import org.scijava.code.lsp.jvm.ClassIndex;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionItemKind;
 import org.eclipse.lsp4j.MarkupContent;
 import org.eclipse.lsp4j.MarkupKind;
 import org.eclipse.lsp4j.TextEdit;
-import org.scijava.code.lsp.Callable;
+import org.scijava.code.lsp.jvm.Callable;
 
 /**
  * The Jython completion engine: given the code before the caret it analyzes the

@@ -36,7 +36,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import org.scijava.code.lsp.ClassIndex;
+import org.scijava.code.lsp.jvm.ClassIndex;
 
 /**
  * A mutable suggestion used internally by the Jython completion engine. It holds
