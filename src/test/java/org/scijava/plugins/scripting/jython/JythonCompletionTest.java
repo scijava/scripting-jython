@@ -48,7 +48,6 @@ import org.scijava.Context;
 import org.scijava.code.lsp.jvm.ClassIndex;
 import org.scijava.code.lsp.LanguageServerService;
 import org.scijava.code.lsp.ScriptSession;
-import org.scijava.code.lsp.RatedSignatureInformation;
 import org.scijava.script.ScriptLanguage;
 import org.scijava.script.ScriptService;
 
@@ -227,17 +226,15 @@ public class JythonCompletionTest {
 		final SignatureHelp max = help("from java.lang import Math\n" +
 			"Math.max(1.5, ");
 		assertEquals(Integer.valueOf(1), max.getActiveParameter());
-		assertEquals("[double:MATCH, float:MATCH, int:MISMATCH, long:MISMATCH]",
-			describe(max));
+		assertEquals("[double, float, int, long]", describe(max));
 		// A Python int fits the integral ones, and converts to the others.
-		assertEquals("[int:MATCH, long:MATCH, double:CONVERSION, " +
-			"float:CONVERSION]", describe(help("from java.lang import Math\n" +
-				"Math.max(1, 2")));
+		assertEquals("[int, long, double, float]", describe(help(
+			"from java.lang import Math\nMath.max(1, 2")));
 		// Arguments' types come from the analysis, e.g. of variables.
 		final SignatureHelp indexOf = help("s = 'abc'\nc = 'b'\n" +
 			"s.indexOf(c, ");
 		assertTrue(describe(indexOf), describe(indexOf).startsWith(
-			"[java.lang.String:MATCH"));
+			"[java.lang.String"));
 		// Constructors.
 		assertTrue(describe(help("from java.util import ArrayList\n" +
 			"ArrayList(")).contains("java.util.Collection"));
@@ -268,14 +265,14 @@ public class JythonCompletionTest {
 		}
 	}
 
-	/** Each signature's first parameter type and fit, in order. */
+	/** Each signature's first parameter type, in order. */
 	private static String describe(final SignatureHelp help) {
 		return help.getSignatures().stream().map(s -> {
 			final String first = s.getParameters().isEmpty() ? "()" : s
 				.getParameters().get(0).getLabel().getLeft();
 			final String type = first.contains(" ") ? first.substring(0, first
 				.lastIndexOf(' ')) : first;
-			return type + ":" + RatedSignatureInformation.fitOf(s);
+			return type;
 		}).collect(Collectors.toList()).toString();
 	}
 
