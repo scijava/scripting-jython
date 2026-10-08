@@ -36,6 +36,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 import javax.script.Bindings;
 import javax.script.ScriptContext;
@@ -43,7 +44,15 @@ import javax.script.ScriptContext;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionItemKind;
 import org.eclipse.lsp4j.CompletionList;
+import org.eclipse.lsp4j.CompletionParams;
+import org.eclipse.lsp4j.DidChangeTextDocumentParams;
+import org.eclipse.lsp4j.DidCloseTextDocumentParams;
+import org.eclipse.lsp4j.DidOpenTextDocumentParams;
+import org.eclipse.lsp4j.Hover;
+import org.eclipse.lsp4j.HoverParams;
 import org.eclipse.lsp4j.SignatureHelp;
+import org.eclipse.lsp4j.SignatureHelpParams;
+import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.python.core.PyJavaType;
 import org.python.core.PyModule;
 import org.python.core.PyObject;
@@ -62,6 +71,11 @@ import org.scijava.code.lsp.jvm.Signatures;
  * a live interpreter, its variables. In a call's arguments, with nothing
  * typed, the variables of the parameter's type come first. Signature help
  * rates the overloads against the arguments typed.
+ * <p>
+ * If a Python language server is offered (see {@link PythonCompanion}), its
+ * completions follow Jython's own; and its signatures and hover serve where
+ * Jython has none.
+ * </p>
  *
  * @author Albert Cardona
  * @author Curtis Rueden
@@ -80,6 +94,9 @@ public class JythonLanguageServer extends ScriptLanguageServer {
 	private final LanguageServerService servers;
 	private final JythonAutoCompletions engine = new JythonAutoCompletions();
 
+	/** A Python language server beside Jython's analysis, or null if none. */
+	private final PythonCompanion python;
+
 	/**
 	 * @param servers Reads the scripts' parameters.
 	 * @param environment Where the scripts run (e.g. a live interpreter).
@@ -87,9 +104,85 @@ public class JythonLanguageServer extends ScriptLanguageServer {
 	public JythonLanguageServer(final LanguageServerService servers,
 		final Environment environment)
 	{
+		this(servers, environment, null);
+	}
+
+	/**
+	 * @param servers Reads the scripts' parameters.
+	 * @param environment Where the scripts run (e.g. a live interpreter).
+	 * @param python A Python language server beside Jython's analysis, or null.
+	 */
+	JythonLanguageServer(final LanguageServerService servers,
+		final Environment environment, final PythonCompanion python)
+	{
 		super(environment);
 		this.servers = servers;
+		this.python = python;
 	}
+
+	// -- LanguageServer, with the Python server beside --
+
+	@Override
+	public void didOpen(final DidOpenTextDocumentParams params) {
+		super.didOpen(params);
+		if (python != null) python.didOpen(params);
+	}
+
+	@Override
+	public void didChange(final DidChangeTextDocumentParams params) {
+		super.didChange(params);
+		if (python != null) python.didChange(params);
+	}
+
+	@Override
+	public void didClose(final DidCloseTextDocumentParams params) {
+		super.didClose(params);
+		if (python != null) python.didClose(params);
+	}
+
+	@Override
+	public CompletableFuture<Either<List<CompletionItem>, CompletionList>>
+		completion(final CompletionParams params)
+	{
+		final CompletableFuture<Either<List<CompletionItem>, CompletionList>> own =
+			super.completion(params);
+		if (python == null) return own;
+		return own.thenCompose(answer -> python.completion(params, answer
+			.getRight()));
+	}
+
+	@Override
+	public CompletableFuture<CompletionItem> resolveCompletionItem(
+		final CompletionItem item)
+	{
+		if (python == null) return super.resolveCompletionItem(item);
+		return python.resolveCompletionItem(item,
+			super::resolveCompletionItem);
+	}
+
+	@Override
+	public CompletableFuture<SignatureHelp> signatureHelp(
+		final SignatureHelpParams params)
+	{
+		final CompletableFuture<SignatureHelp> own = super.signatureHelp(params);
+		if (python == null) return own;
+		return own.thenCompose(help -> python.signatureHelp(params, help));
+	}
+
+	@Override
+	public CompletableFuture<Hover> hover(final HoverParams params) {
+		final CompletableFuture<Hover> own = super.hover(params);
+		if (python == null) return own;
+		return own.thenCompose(h -> python.hover(params, h));
+	}
+
+	@Override
+	public CompletableFuture<Object> shutdown() {
+		if (python != null) python.shutdown();
+		return super.shutdown();
+	}
+
+	// -- ScriptLanguageServer --
 
 	@Override
 	protected CompletionList complete(final Document doc, final int caret) {

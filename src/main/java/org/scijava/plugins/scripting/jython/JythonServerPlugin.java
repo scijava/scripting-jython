@@ -28,6 +28,8 @@
  */
 package org.scijava.plugins.scripting.jython;
 
+import java.io.File;
+
 import org.eclipse.lsp4j.services.LanguageServer;
 import org.scijava.Priority;
 import org.scijava.code.lsp.LanguageServerService;
@@ -39,7 +41,8 @@ import org.scijava.script.ScriptLanguage;
 
 /**
  * Offers Jython's in-process language server (see
- * {@link JythonLanguageServer}).
+ * {@link JythonLanguageServer}), with a Python language server beside it if
+ * one is offered (see {@link PythonCompanion}).
  *
  * @author Gabriel Selzer
  */
@@ -50,6 +53,8 @@ public class JythonServerPlugin implements LanguageServerPlugin {
 	@Parameter(required = false)
 	private LanguageServerService servers;
 
+	private JavaStubs stubs;
+
 	@Override
 	public boolean supports(final ScriptLanguage language) {
 		return isJython(language);
@@ -57,7 +62,24 @@ public class JythonServerPlugin implements LanguageServerPlugin {
 
 	@Override
 	public LanguageServer create(final Environment environment) {
-		return new JythonLanguageServer(servers, environment);
+		return new JythonLanguageServer(servers, environment, PythonCompanion
+			.launch(servers, stubs()));
+	}
+
+	/** Sets the stubs, e.g. to write them elsewhere in tests. */
+	synchronized void setStubs(final JavaStubs stubs) {
+		this.stubs = stubs;
+	}
+
+	/** Gets the stubs of Java packages, creating them on first use. */
+	synchronized JavaStubs stubs() {
+		if (stubs != null) return stubs;
+		final String dir = System.getProperty("scijava.jython.stubs");
+		stubs = new JavaStubs(dir != null ? new File(dir) : new File(System
+			.getProperty("user.home"), ".cache" + File.separator + "scijava" +
+				File.separator + "jython-stubs"), Thread.currentThread()
+					.getContextClassLoader());
+		return stubs;
 	}
 
 	/** Matches "Jython" and "Python (Jython)", without claiming CPython. */
