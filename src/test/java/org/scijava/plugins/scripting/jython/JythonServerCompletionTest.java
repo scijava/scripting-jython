@@ -93,7 +93,7 @@ public class JythonServerCompletionTest {
 		final Environment env = PythonCompanion.environment(stubs);
 		assertEquals(null, env.interpreter());
 		assertEquals(Collections.singletonList(stubsDir.getAbsolutePath()), env
-			.searchPaths());
+			.paths());
 	}
 
 	@Test
