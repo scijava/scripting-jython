@@ -135,6 +135,7 @@ public class JythonServerCompletionTest {
 		assertEquals(Arrays.asList("import array", "import java.util",
 			"import net.imglib2.img"), dialect.imports(Arrays.asList(
 				"net.imglib2.img.Img", "str", "java.util.Map$Entry", "array.array")));
+		assertEquals("net", dialect.imported("import net.imglib2.img"));
 		assertTrue(JythonServerPlugin.isJython(jython));
 	}
 }
