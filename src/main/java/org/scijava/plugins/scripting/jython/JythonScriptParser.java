@@ -404,6 +404,13 @@ public class JythonScriptParser
 			// gray8 = IJ.getImage().GRAY8
 			final Attribute attr = (Attribute)right;
 			final DotAutocompletions da = parseRight(attr.getValue(), scope);
+			// e.g. a class by its full name, after a package (or nothing known)
+			// img = net.imglib2.img.Img()
+			if (DotAutocompletions.EMPTY == da || da instanceof StaticDotAutocompletions) {
+				final String fullName = javaClass(attr);
+				if (null != fullName)
+					return new StaticDotAutocompletions(fullName);
+			}
 			if (DotAutocompletions.EMPTY == da)
 				return da;
 			final String name = attr.getInternalAttr();
@@ -464,5 +471,33 @@ public class JythonScriptParser
 		JythonDev.printTrace("Unsupported 'right' is: " + right + " " + (right != null ? right.getClass() : ""));
 		
 		return DotAutocompletions.EMPTY;
+	}
+
+	/**
+	 * The Java class a dotted name (e.g. {@code java.util.Map.Entry}) is, by
+	 * its full name; or null if none (e.g. it starts with a variable).
+	 */
+	static private String javaClass(final Attribute attr) {
+		final StringBuilder name = new StringBuilder(attr.getInternalAttr());
+		PyObject node = attr.getValue();
+		while (node instanceof Attribute) {
+			name.insert(0, ((Attribute)node).getInternalAttr() + ".");
+			node = ((Attribute)node).getValue();
+		}
+		if (!(node instanceof Name)) return null;
+		name.insert(0, ((Name)node).getInternalId() + ".");
+		// NB: A package starts lowercase; a class, uppercase.
+		if (!Character.isLowerCase(name.charAt(0))) return null;
+		String candidate = name.toString();
+		while (true) {
+			try {
+				return Class.forName(candidate).getName();
+			} catch (ClassNotFoundException | LinkageError e) {
+				// Perhaps a nested class: e.g. java.util.Map$Entry.
+				final int dot = candidate.lastIndexOf('.');
+				if (dot < 0 || !Character.isUpperCase(candidate.charAt(candidate.lastIndexOf('.', dot - 1) + 1))) return null;
+				candidate = candidate.substring(0, dot) + "$" + candidate.substring(dot + 1);
+			}
+		}
 	}
 }

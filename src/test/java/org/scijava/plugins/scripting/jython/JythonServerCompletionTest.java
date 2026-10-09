@@ -118,15 +118,18 @@ public class JythonServerCompletionTest {
 	@Test
 	public void testDeclarations() {
 		final JythonDialect dialect = new JythonDialect();
-		assertEquals("img: net.imglib2.img.Img", dialect.declare("img",
+		assertEquals("img = net.imglib2.img.Img()", dialect.declare("img",
 			"net.imglib2.img.Img"));
-		assertEquals("n: int", dialect.declare("n", dialect.runtimeType(
-			int.class)));
-		assertEquals("e: java.util.Map.Entry", dialect.declare("e",
+		assertEquals("n = java.lang.Integer()", dialect.declare("n", dialect
+			.runtimeType(int.class)));
+		assertEquals("e = java.util.Map.Entry()", dialect.declare("e",
 			"java.util.Map$Entry"));
-		assertEquals(Arrays.asList("import java.util", "import net.imglib2.img"),
-			dialect.imports(Arrays.asList("net.imglib2.img.Img", "java.lang.String",
-				"java.util.Map$Entry")));
+		assertEquals("a = list()", dialect.declare("a", dialect.runtimeType(
+			double[].class)));
+		assertEquals(Arrays.asList("import java.lang", "import java.util",
+			"import net.imglib2.img"), dialect.imports(Arrays.asList(
+				"net.imglib2.img.Img", "java.lang.String", "java.util.Map$Entry",
+				"[D")));
 		assertTrue(JythonServerPlugin.isJython(jython));
 	}
 }

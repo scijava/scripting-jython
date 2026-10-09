@@ -33,12 +33,9 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionList;
@@ -57,15 +54,14 @@ import org.eclipse.lsp4j.services.LanguageServer;
 import org.eclipse.lsp4j.services.TextDocumentService;
 import org.scijava.code.lsp.Environment;
 import org.scijava.code.lsp.LanguageServerService;
-import org.scijava.code.lsp.script.ScriptDocument;
-import org.scijava.code.lsp.script.TransformingLanguageServer;
 
 /**
  * A Python language server (e.g. jedi-language-server, if the
  * {@code appose-python} scripting plugin offers one) beside Jython's own
  * analysis (see {@link JythonLanguageServer}): for Python modules, and for
- * Java classes, from Python stubs of the Java packages a script imports and
- * its parameters' types (see {@link JavaStubs}, written in the background).
+ * Java classes, from Python stubs of the Java packages a script imports
+ * (including those of its parameters' types, declared in its text; see
+ * {@link JavaStubs}, written in the background).
  * <p>
  * The server analyzes scripts as CPython (Jython's standard library is Python
  * 2's, but mostly the same): so its completions follow Jython's own, it is
@@ -77,19 +73,14 @@ import org.scijava.code.lsp.script.TransformingLanguageServer;
  */
 final class PythonCompanion {
 
-	/** The server, seeing scripts as plain Python. */
+	/** The server. */
 	private final LanguageServer server;
 	private final JavaStubs stubs;
-	private final Function<String, Map<String, Class<?>>> parameters;
 
-	private PythonCompanion(final LanguageServer python, final JavaStubs stubs,
-		final Function<String, Map<String, Class<?>>> parameters)
-	{
+	private PythonCompanion(final LanguageServer python, final JavaStubs stubs) {
 		this.stubs = stubs;
-		this.parameters = parameters;
 		// NB: No client: the server's problems are not asked for.
-		server = new TransformingLanguageServer(python, text -> ScriptDocument.of(
-			text, parameters.apply(text), JythonLanguageServer.DIALECT, null));
+		server = python;
 		server.initialize(new InitializeParams()).thenRun(() -> server
 			.initialized(new InitializedParams()));
 	}
@@ -97,7 +88,7 @@ final class PythonCompanion {
 	/**
 	 * Gets a Python server beside Jython's, or null if none is offered.
 	 *
-	 * @param servers Offers the server, and reads the scripts' parameters.
+	 * @param servers Offers the server.
 	 * @param stubs The stubs of Java packages, for the server to search.
 	 */
 	static PythonCompanion launch(final LanguageServerService servers,
@@ -105,8 +96,7 @@ final class PythonCompanion {
 	{
 		if (servers == null) return null;
 		final LanguageServer python = servers.launch("python", environment(stubs));
-		return python == null ? null : new PythonCompanion(python, stubs,
-			servers::scriptParameters);
+		return python == null ? null : new PythonCompanion(python, stubs);
 	}
 
 	/** Where the server runs: its own Python, searching the Java stubs. */
@@ -192,14 +182,9 @@ final class PythonCompanion {
 		return server.getTextDocumentService();
 	}
 
-	/** Writes the stubs the script needs, in the background. */
+	/** Writes the stubs of the packages the script imports, in the background. */
 	private void ensureStubs(final String text) {
-		final Set<String> packages = new TreeSet<>(JavaStubs.imports(text));
-		final ScriptDocument doc = ScriptDocument.of(text, parameters.apply(text),
-			JythonLanguageServer.DIALECT, null);
-		packages.addAll(JythonDialect.packages(doc.parameters().values().stream()
-			.filter(t -> t != null).collect(Collectors.toList())));
-		stubs.ensure(packages);
+		stubs.ensure(JavaStubs.imports(text));
 	}
 
 	/**
