@@ -140,13 +140,16 @@ public class JythonCompletionTest {
 			"#@ NoSuchType mystery\n";
 		assertTrue(complete(header + "x = na").contains("name"));
 		assertTrue(complete(header + "myst").contains("mystery"));
-		final List<String> nameMembers = complete(header + "name.toUpp");
-		assertTrue("expected name.toUpperCase among " + nameMembers, nameMembers
-			.contains("name.toUpperCase"));
+		// As the Python values Jython converts them to: e.g. strings are str,
+		// whose members are Python's, not java.lang.String's.
+		final List<String> nameMembers = complete(header + "name.upp");
+		assertTrue("expected name.upper among " + nameMembers, nameMembers
+			.contains("name.upper"));
+		assertTrue(complete(header + "name.toUpp").isEmpty());
 		// Outputs are known too, even before the script assigns them.
-		assertTrue(complete(header + "greeting.len").contains("greeting.length"));
-		// Primitive parameters complete as their wrapper type.
-		assertTrue(complete(header + "count.intV").contains("count.intValue"));
+		assertTrue(complete(header + "greeting.st").contains("greeting.strip"));
+		// Numbers are int, not java.lang.Integer.
+		assertFalse(complete(header + "count.intV").contains("count.intValue"));
 	}
 
 	@Test

@@ -28,6 +28,7 @@
  */
 package org.scijava.plugins.scripting.jython;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -37,13 +38,15 @@ import java.util.TreeSet;
 import org.scijava.code.lsp.script.ScriptDialect;
 
 /**
- * How Jython scripts see their script parameters: as the Java objects
- * themselves (primitives boxed), e.g. {@code net.imglib2.img.Img}.
+ * How Jython scripts see their script parameters: as the Python values Jython
+ * converts them to (e.g. {@code str} for strings, {@code int} for integers,
+ * {@code array.array} for arrays), or else as the Java objects themselves
+ * (e.g. {@code net.imglib2.img.Img}).
  * <p>
- * Each is declared as an instance of its class, in code both Jython's own
+ * Each is declared as an instance of its type, in code both Jython's own
  * analysis (Python 2) and a Python language server knowing the Java packages
  * from stubs (see {@link JavaStubs}) read: e.g. {@code import net.imglib2.img;
- * image = net.imglib2.img.Img()}. (Arrays are lists.)
+ * image = net.imglib2.img.Img(); name = str()}.
  * </p>
  *
  * @author Gabriel Selzer
@@ -52,13 +55,20 @@ class JythonDialect implements ScriptDialect {
 
 	@Override
 	public String runtimeType(final Class<?> type) {
-		return boxed(type).getName();
+		final Class<?> t = boxed(type);
+		// NB: As Jython converts them (Py.java2py).
+		if (t == String.class || t == Character.class) return "str";
+		if (t == Integer.class || t == Long.class || t == Short.class ||
+			t == Byte.class || t == BigInteger.class) return "int";
+		if (t == Double.class || t == Float.class) return "float";
+		if (t == Boolean.class) return "bool";
+		if (t.isArray()) return "array.array";
+		return t.getName();
 	}
 
 	@Override
 	public String declare(final String name, final String type) {
-		return name + " = " + (type.startsWith("[") ? "list" : type.replace('$',
-			'.')) + "()";
+		return name + " = " + type.replace('$', '.') + "()";
 	}
 
 	@Override
@@ -68,17 +78,20 @@ class JythonDialect implements ScriptDialect {
 		return imports;
 	}
 
-	/** The Java packages of the given types that a declaration refers to. */
+	/**
+	 * The packages or modules of the given types that a declaration refers to
+	 * (none for builtins, e.g. {@code str}).
+	 */
 	static Set<String> packages(final Collection<String> types) {
 		final Set<String> packages = new TreeSet<>();
 		for (final String t : types) {
-			if (!t.startsWith("[") && t.lastIndexOf('.') > 0) packages.add(t
-				.substring(0, t.lastIndexOf('.')));
+			if (t.lastIndexOf('.') > 0) packages.add(t.substring(0, t.lastIndexOf(
+				'.')));
 		}
 		return packages;
 	}
 
-	/** Maps primitive types to their wrappers, whose members can be listed. */
+	/** Maps primitive types to their wrappers. */
 	private static Class<?> boxed(final Class<?> type) {
 		if (!type.isPrimitive()) return type;
 		if (type == int.class) return Integer.class;
