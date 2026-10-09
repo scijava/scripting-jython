@@ -35,6 +35,7 @@ import org.scijava.Priority;
 import org.scijava.code.lsp.LanguageServerService;
 import org.scijava.code.lsp.Environment;
 import org.scijava.code.lsp.LanguageServerPlugin;
+import org.scijava.code.lsp.script.ScriptDialect;
 import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
 import org.scijava.script.ScriptLanguage;
@@ -42,7 +43,8 @@ import org.scijava.script.ScriptLanguage;
 /**
  * Offers Jython's in-process language server (see
  * {@link JythonLanguageServer}), with a Python language server beside it if
- * one is offered (see {@link PythonCompanion}).
+ * one is offered (see {@link PythonCompanion}); both see scripts as plain
+ * Python (see {@link JythonDialect}).
  *
  * @author Gabriel Selzer
  */
@@ -62,8 +64,13 @@ public class JythonServerPlugin implements LanguageServerPlugin {
 
 	@Override
 	public LanguageServer create(final Environment environment) {
-		return new JythonLanguageServer(servers, environment, PythonCompanion
-			.launch(servers, stubs()));
+		return new JythonLanguageServer(environment, PythonCompanion.launch(
+			servers, stubs()));
+	}
+
+	@Override
+	public ScriptDialect dialect() {
+		return JythonLanguageServer.DIALECT;
 	}
 
 	/** Sets the stubs, e.g. to write them elsewhere in tests. */

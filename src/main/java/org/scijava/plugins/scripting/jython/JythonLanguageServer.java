@@ -58,7 +58,6 @@ import org.python.core.PyModule;
 import org.python.core.PyObject;
 import org.python.core.PyString;
 import org.scijava.code.lsp.jvm.ClassIndex;
-import org.scijava.code.lsp.LanguageServerService;
 import org.scijava.code.lsp.jvm.Callable;
 import org.scijava.code.lsp.Environment;
 import org.scijava.code.lsp.jvm.ScriptLanguageServer;
@@ -83,7 +82,10 @@ import org.scijava.code.lsp.jvm.Signatures;
  */
 public class JythonLanguageServer extends ScriptLanguageServer {
 
-	/** How scripts see their parameters: as the Java objects themselves. */
+	/**
+	 * How scripts see their parameters: as the Java objects themselves,
+	 * declared in the text (see {@link JythonServerPlugin#dialect()}).
+	 */
 	static final JythonDialect DIALECT = new JythonDialect();
 
 	static {
@@ -91,32 +93,26 @@ public class JythonLanguageServer extends ScriptLanguageServer {
 		new Thread(ClassIndex::ensureCache, "Jython-ClassIndex-warmup").start();
 	}
 
-	private final LanguageServerService servers;
 	private final JythonAutoCompletions engine = new JythonAutoCompletions();
 
 	/** A Python language server beside Jython's analysis, or null if none. */
 	private final PythonCompanion python;
 
 	/**
-	 * @param servers Reads the scripts' parameters.
 	 * @param environment Where the scripts run (e.g. a live interpreter).
 	 */
-	public JythonLanguageServer(final LanguageServerService servers,
-		final Environment environment)
-	{
-		this(servers, environment, null);
+	public JythonLanguageServer(final Environment environment) {
+		this(environment, null);
 	}
 
 	/**
-	 * @param servers Reads the scripts' parameters.
 	 * @param environment Where the scripts run (e.g. a live interpreter).
 	 * @param python A Python language server beside Jython's analysis, or null.
 	 */
-	JythonLanguageServer(final LanguageServerService servers,
-		final Environment environment, final PythonCompanion python)
+	JythonLanguageServer(final Environment environment,
+		final PythonCompanion python)
 	{
 		super(environment);
-		this.servers = servers;
 		this.python = python;
 	}
 
@@ -310,24 +306,16 @@ public class JythonLanguageServer extends ScriptLanguageServer {
 			'\n') + 1);
 		return engine.completionsFor(textToCaret.substring(0, textToCaret
 			.length() - lastLine.length()), lastLine, alreadyEnteredText(lastLine),
-			predefinedVariables(text));
+			liveVariables());
 	}
 
 	/**
-	 * Gets the variables defined before the script's code runs: script
-	 * parameters declared via {@code #@} lines, and, when completing in a live
-	 * interpreter, its bindings (which reflect actual runtime values, so they
-	 * take precedence).
+	 * Gets the variables defined before the code runs, when completing in a
+	 * live interpreter: its bindings. (A script's parameters are declared in
+	 * its text.)
 	 */
-	private Map<String, DotAutocompletions> predefinedVariables(
-		final String text)
-	{
+	private Map<String, DotAutocompletions> liveVariables() {
 		final Map<String, DotAutocompletions> vars = new LinkedHashMap<>();
-		if (servers != null) {
-			servers.scriptParameters(text).forEach((name,
-				type) -> vars.put(name, new VarDotAutocompletions(DIALECT.runtimeType(
-					type))));
-		}
 		final ScriptContext live = environment().live();
 		final Bindings bindings = live == null ? null : live.getBindings(
 			ScriptContext.ENGINE_SCOPE);

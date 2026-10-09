@@ -182,7 +182,8 @@ public class JavaStubs {
 	 */
 	public static Set<String> imports(final String script) {
 		final Set<String> packages = new TreeSet<>();
-		for (final String line : script.split("\n")) {
+		// NB: Statements on one line are separated by semicolons.
+		for (final String line : script.split("[\n;]")) {
 			final String l = line.trim();
 			String module = null;
 			if (l.startsWith("from ")) {
