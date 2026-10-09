@@ -112,7 +112,7 @@ final class PythonCompanion {
 	/** Where the server runs: its own Python, searching the Java stubs. */
 	static Environment environment(final JavaStubs stubs) {
 		return new Environment(null, Collections.singletonList(stubs.dir()
-			.getAbsolutePath()), null, null);
+			.getAbsolutePath()), null);
 	}
 
 	// -- Documents --
