@@ -78,6 +78,13 @@ class JythonDialect implements ScriptDialect {
 		return imports;
 	}
 
+	@Override
+	public String imported(final String statement) {
+		// NB: "import a.b" binds a.
+		return statement.startsWith("import ") ? statement.substring(7).split(
+			"[.\\s]")[0] : null;
+	}
+
 	/**
 	 * The packages or modules of the given types that a declaration refers to
 	 * (none for builtins, e.g. {@code str}).

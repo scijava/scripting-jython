@@ -150,6 +150,8 @@ public class JythonCompletionTest {
 		assertTrue(complete(header + "greeting.st").contains("greeting.strip"));
 		// Numbers are int, not java.lang.Integer.
 		assertFalse(complete(header + "count.intV").contains("count.intValue"));
+		// Packages imported only to declare those are not completed.
+		assertFalse(complete(header + "j").contains("java.lang"));
 	}
 
 	@Test
