@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package org.scijava.plugins.scripting.jython;
+package org.scijava.plugins.scripting.jython.completion;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;

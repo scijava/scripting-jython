@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package org.scijava.plugins.scripting.jython;
+package org.scijava.plugins.scripting.jython.completion;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -60,7 +60,7 @@ import org.python.core.PyString;
 import org.scijava.code.lsp.jvm.ClassIndex;
 import org.scijava.code.lsp.jvm.Callable;
 import org.scijava.code.lsp.Environment;
-import org.scijava.code.lsp.jvm.ScriptLanguageServer;
+import org.scijava.code.lsp.jvm.AbstractLanguageServer;
 import org.scijava.code.lsp.jvm.Signatures;
 
 /**
@@ -80,7 +80,7 @@ import org.scijava.code.lsp.jvm.Signatures;
  * @author Curtis Rueden
  * @author Gabriel Selzer
  */
-public class JythonLanguageServer extends ScriptLanguageServer {
+public class JythonLanguageServer extends AbstractLanguageServer {
 
 	/**
 	 * How scripts see their parameters: as the Java objects themselves,
@@ -178,7 +178,7 @@ public class JythonLanguageServer extends ScriptLanguageServer {
 		return super.shutdown();
 	}
 
-	// -- ScriptLanguageServer --
+	// -- AbstractLanguageServer --
 
 	@Override
 	protected CompletionList complete(final Document doc, final int caret) {
@@ -189,9 +189,9 @@ public class JythonLanguageServer extends ScriptLanguageServer {
 		}
 		final String alreadyEntered = alreadyEnteredText(lastLine);
 		final int replaceStart = caret - alreadyEntered.length();
-		final JythonAutoCompletions.Result result = completionsAt(text, caret);
+		final JythonAutoCompletions.Result result = completionsAt(doc, caret);
 		final List<CompletionItem> items = new ArrayList<>();
-		if (alreadyEntered.isEmpty()) items.addAll(argumentChoices(text, caret));
+		if (alreadyEntered.isEmpty()) items.addAll(argumentChoices(doc, caret));
 		items.addAll(result.completions);
 		return list(doc, replaceStart, caret, items);
 	}
@@ -200,7 +200,7 @@ public class JythonLanguageServer extends ScriptLanguageServer {
 	protected SignatureHelp signatureHelp(final Document doc, final int caret) {
 		final String text = doc.text();
 		if (doc.lineTo(caret).trim().startsWith("#")) return null;
-		final Call call = call(text, caret);
+		final Call call = call(doc, caret);
 		if (call == null || call.callables.isEmpty()) return null;
 
 		// The types of the arguments before the caret's (which is being typed).
@@ -234,7 +234,8 @@ public class JythonLanguageServer extends ScriptLanguageServer {
 	}
 
 	/** Finds the call around the caret, or returns null if none. */
-	private Call call(final String text, final int caret) {
+	private Call call(final Document doc, final int caret) {
+		final String text = doc.text();
 		final int open = Signatures.callStart(text, caret);
 		if (open < 0) return null;
 		final List<String> args = Signatures.arguments(text, open, caret);
@@ -253,7 +254,7 @@ public class JythonLanguageServer extends ScriptLanguageServer {
 		List<Callable> callables = Collections.emptyList();
 		for (final int at : new int[] { open, open + 1 }) {
 			final String name = at == open ? callee : simpleName;
-			result = completionsAt(text, at);
+			result = completionsAt(doc, at);
 			callables = new ArrayList<>();
 			for (final CompletionItem item : result.completions) {
 				final Callable c = Callable.of(item);
@@ -271,10 +272,10 @@ public class JythonLanguageServer extends ScriptLanguageServer {
 	 * In a call's arguments, with nothing typed: the variables of the
 	 * parameter's type (the first preselected).
 	 */
-	private List<CompletionItem> argumentChoices(final String text,
+	private List<CompletionItem> argumentChoices(final Document doc,
 		final int caret)
 	{
-		final Call call = call(text, caret);
+		final Call call = call(doc, caret);
 		if (call == null || call.result.variablesOfType == null) {
 			return Collections.emptyList();
 		}
@@ -297,9 +298,10 @@ public class JythonLanguageServer extends ScriptLanguageServer {
 	}
 
 	/** Computes completions as if the caret were at the given offset. */
-	private JythonAutoCompletions.Result completionsAt(final String text,
+	private JythonAutoCompletions.Result completionsAt(final Document doc,
 		final int offset)
 	{
+		final String text = doc.text();
 		final String textToCaret = text.substring(0, Math.min(offset, text
 			.length()));
 		final String lastLine = textToCaret.substring(textToCaret.lastIndexOf(

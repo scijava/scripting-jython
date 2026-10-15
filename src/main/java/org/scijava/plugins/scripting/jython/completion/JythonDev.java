@@ -26,52 +26,40 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package org.scijava.plugins.scripting.jython;
+package org.scijava.plugins.scripting.jython.completion;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Stream;
-
-
-public class VarDotAutocompletions implements DotAutocompletions {
-	String className;
-	public VarDotAutocompletions(final String className) {
-		this.className = className;
-	}
-	@Override
-	public String getClassname() {
-		return this.className;
-	}
-	@Override
-	public List<CompletionText> get() {
-		final List<CompletionText> ac = new ArrayList<>();
-		if (null != className) {
-			try {
-				final Class<?> c = Class.forName(className);
-				DotAutocompletions.fieldsAndMethodsInto(c, ac);
-			} catch (final Exception e) {
-				JythonDev.print("Could not load class " + className, e);
-			}
-		}
-		return ac;
+public class JythonDev
+{
+	static public int SILENT = 0,
+					  MESSAGES = 1,
+					  ERRORS = 2;
+	
+	/** Adjust value to see debugging information, including:
+	 * SILENT: nothing is printed at all.
+	 * MESSAGES: prints light messages indicating some internals and the kinds of errors.
+	 * ERRORS: prints everything including exceptions.
+	 */
+	static public int debug = MESSAGES;
+	
+	static public final void print(Object s) {
+		if (debug >= MESSAGES) System.out.println(s);
 	}
 	
-	@Override
-	public Stream<CompletionText> getStream() {
-		try {
-			final Class<?> c = Class.forName(this.className);
-			return Stream.concat(
-					Arrays.stream(c.getFields()).map(f -> new CompletionText(f.getName(), c, f)),
-					Arrays.stream(c.getMethods()).map(m -> new CompletionText(m.getName(), c, m)));
-		} catch (final Exception e) {
-			JythonDev.print("Could not load class " + className, e);
+	static public final void printError(Throwable e) {
+		if (debug >= ERRORS) e.printStackTrace();
+	}
+	
+	static public final void printTrace(Object s) {
+		if (debug >= ERRORS) System.out.println(s);
+	}
+	
+	static public final void print(Object s, Throwable e) {
+		if (debug >= ERRORS) {
+			System.out.println(s);
+			e.printStackTrace();
+		} else if (debug >= MESSAGES) {
+			System.out.println(s.toString() + " :: " + e.getMessage());
 		}
-		return Stream.empty();
 	}
 
-	@Override
-	public String toString() {
-		return "VarDotAutocompletions: " + this.className;
-	}
 }

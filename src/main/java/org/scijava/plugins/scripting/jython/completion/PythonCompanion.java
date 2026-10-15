@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package org.scijava.plugins.scripting.jython;
+package org.scijava.plugins.scripting.jython.completion;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -56,12 +56,11 @@ import org.scijava.code.lsp.Environment;
 import org.scijava.code.lsp.LanguageServerService;
 
 /**
- * A Python language server (e.g. jedi-language-server, if the
- * {@code appose-python} scripting plugin offers one) beside Jython's own
- * analysis (see {@link JythonLanguageServer}): for Python modules, and for
- * Java classes, from Python stubs of the Java packages a script imports
- * (including those of its parameters' types, declared in its text; see
- * {@link JavaStubs}, written in the background).
+ * A Python language server (e.g. jedi-language-server, as code-lsp-jedi
+ * offers) beside Jython's own analysis (see {@link JythonLanguageServer}):
+ * for Python modules, and for Java classes, from Python stubs of the Java
+ * packages a script imports (including those of its parameters' types,
+ * declared in its text; see {@link JavaStubs}, written in the background).
  * <p>
  * The server analyzes scripts as CPython (Jython's standard library is Python
  * 2's, but mostly the same): so its completions follow Jython's own, it is
@@ -94,9 +93,9 @@ final class PythonCompanion {
 	static PythonCompanion launch(final LanguageServerService servers,
 		final JavaStubs stubs)
 	{
-		if (servers == null) return null;
-		final LanguageServer python = servers.launch("python", environment(stubs));
-		return python == null ? null : new PythonCompanion(python, stubs);
+		if (servers == null || !servers.supports("python")) return null;
+		return new PythonCompanion(servers.launch("python", environment(stubs)),
+			stubs);
 	}
 
 	/** Where the server runs: its own Python, searching the Java stubs. */

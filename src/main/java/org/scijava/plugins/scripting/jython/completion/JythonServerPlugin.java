@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package org.scijava.plugins.scripting.jython;
+package org.scijava.plugins.scripting.jython.completion;
 
 import java.io.File;
 
@@ -63,7 +63,15 @@ public class JythonServerPlugin implements LanguageServerPlugin {
 	}
 
 	@Override
-	public LanguageServer create(final Environment environment) {
+	public boolean supports(final String languageId) {
+		// NB: Not "python", which this builds on (see PythonCompanion).
+		return "jython".equals(languageId);
+	}
+
+	@Override
+	public LanguageServer create(final String languageId,
+		final Environment environment)
+	{
 		return new JythonLanguageServer(environment, PythonCompanion.launch(
 			servers, stubs()));
 	}

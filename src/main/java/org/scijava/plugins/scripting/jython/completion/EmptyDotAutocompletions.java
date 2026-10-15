@@ -26,26 +26,20 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package org.scijava.plugins.scripting.jython;
+package org.scijava.plugins.scripting.jython.completion;
 
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 
-public class ConstructorAutocompletions implements DotAutocompletions
-{
-	private final Class<?> c;
-	
-	public ConstructorAutocompletions(final Class<?> c) {
-		this.c = c;
+public class EmptyDotAutocompletions implements DotAutocompletions {
+	@Override
+	public List<CompletionText> get() {
+		return Collections.emptyList();
 	}
 	
 	@Override
-	public List<CompletionText> get() {
-		return Arrays.asList(this.c.getConstructors()).stream()
-				.map(cons -> new CompletionText(c.getSimpleName(), c, cons))
-				.collect(Collectors.toList());
+	public String toString() {
+		return "EMPTY";
 	}
-
 }

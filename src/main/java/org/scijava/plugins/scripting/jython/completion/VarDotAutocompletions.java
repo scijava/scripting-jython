@@ -26,31 +26,52 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package org.scijava.plugins.scripting.jython;
+package org.scijava.plugins.scripting.jython.completion;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Stream;
 
-public class DefVarDotAutocompletions extends VarDotAutocompletions {
 
-	String fnName;
-	final List<String> argumentNames;
-	Scope scope;
-	
-	public DefVarDotAutocompletions(final String fnName, final String returnClassName, final List<String> argumentNames, final Scope scope) {
-		super(returnClassName);
-		this.fnName = fnName;
-		this.argumentNames = argumentNames;
-		this.scope = scope;
+public class VarDotAutocompletions implements DotAutocompletions {
+	String className;
+	public VarDotAutocompletions(final String className) {
+		this.className = className;
 	}
-	
-	public List<String> getArgumentNames() {
-		return this.argumentNames;
+	@Override
+	public String getClassname() {
+		return this.className;
+	}
+	@Override
+	public List<CompletionText> get() {
+		final List<CompletionText> ac = new ArrayList<>();
+		if (null != className) {
+			try {
+				final Class<?> c = Class.forName(className);
+				DotAutocompletions.fieldsAndMethodsInto(c, ac);
+			} catch (final Exception e) {
+				JythonDev.print("Could not load class " + className, e);
+			}
+		}
+		return ac;
 	}
 	
 	@Override
+	public Stream<CompletionText> getStream() {
+		try {
+			final Class<?> c = Class.forName(this.className);
+			return Stream.concat(
+					Arrays.stream(c.getFields()).map(f -> new CompletionText(f.getName(), c, f)),
+					Arrays.stream(c.getMethods()).map(m -> new CompletionText(m.getName(), c, m)));
+		} catch (final Exception e) {
+			JythonDev.print("Could not load class " + className, e);
+		}
+		return Stream.empty();
+	}
+
+	@Override
 	public String toString() {
-		return "DefVarAutocompletions:" +
-				"  Class: " + super.className +
-				"  Arguments: " + String.join(", ", this.argumentNames);
+		return "VarDotAutocompletions: " + this.className;
 	}
 }

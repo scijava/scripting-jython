@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package org.scijava.plugins.scripting.jython;
+package org.scijava.plugins.scripting.jython.completion;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -53,7 +53,8 @@ import org.junit.Test;
  */
 public class JavaStubsTest {
 
-	private static final String PKG = "org.scijava.plugins.scripting.jython";
+	private static final String PKG =
+		"org.scijava.plugins.scripting.jython.completion";
 
 	/** Lists just the example classes. */
 	private static final Function<String, List<String>> CLASSES = pkg -> PKG

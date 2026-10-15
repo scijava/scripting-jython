@@ -1,18 +1,18 @@
 /*-
  * #%L
- * Jython language support for SciJava Script Editor.
+ * JSR-223-compliant Jython scripting language plugin.
  * %%
- * Copyright (C) 2020 - 2024 SciJava developers.
+ * Copyright (C) 2020 - 2025 SciJava developers.
  * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -26,40 +26,26 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package org.scijava.plugins.scripting.jython;
+package org.scijava.plugins.scripting.jython.completion;
 
-public class JythonDev
-{
-	static public int SILENT = 0,
-					  MESSAGES = 1,
-					  ERRORS = 2;
-	
-	/** Adjust value to see debugging information, including:
-	 * SILENT: nothing is printed at all.
-	 * MESSAGES: prints light messages indicating some internals and the kinds of errors.
-	 * ERRORS: prints everything including exceptions.
-	 */
-	static public int debug = MESSAGES;
-	
-	static public final void print(Object s) {
-		if (debug >= MESSAGES) System.out.println(s);
-	}
-	
-	static public final void printError(Throwable e) {
-		if (debug >= ERRORS) e.printStackTrace();
-	}
-	
-	static public final void printTrace(Object s) {
-		if (debug >= ERRORS) System.out.println(s);
-	}
-	
-	static public final void print(Object s, Throwable e) {
-		if (debug >= ERRORS) {
-			System.out.println(s);
-			e.printStackTrace();
-		} else if (debug >= MESSAGES) {
-			System.out.println(s.toString() + " :: " + e.getMessage());
-		}
+/**
+ * Formats fully qualified class names as Jython import statements.
+ *
+ * @author Albert Cardona
+ */
+public class JythonImportFormat {
+
+	/** Given a fully-qualified class name, returns a Jython import statement. */
+	public final String singleToImportStatement(final String className) {
+		final int idot = className.lastIndexOf('.');
+		if (-1 == idot) return "import " + className;
+		return dualToImportStatement(className.substring(0, idot), className
+			.substring(idot + 1));
 	}
 
+	public String dualToImportStatement(final String packageName,
+		final String simpleClassName)
+	{
+		return "from " + packageName + " import " + simpleClassName;
+	}
 }
