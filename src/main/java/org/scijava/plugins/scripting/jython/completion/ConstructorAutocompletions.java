@@ -1,18 +1,18 @@
 /*-
  * #%L
- * JSR-223-compliant Jython scripting language plugin.
+ * Jython language support for SciJava Script Editor.
  * %%
- * Copyright (C) 2020 - 2025 SciJava developers.
+ * Copyright (C) 2020 - 2024 SciJava developers.
  * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- *
+ * 
  * 1. Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -26,26 +26,26 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package org.scijava.plugins.scripting.jython;
+package org.scijava.plugins.scripting.jython.completion;
 
-/**
- * Formats fully qualified class names as Jython import statements.
- *
- * @author Albert Cardona
- */
-public class JythonImportFormat {
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
-	/** Given a fully-qualified class name, returns a Jython import statement. */
-	public final String singleToImportStatement(final String className) {
-		final int idot = className.lastIndexOf('.');
-		if (-1 == idot) return "import " + className;
-		return dualToImportStatement(className.substring(0, idot), className
-			.substring(idot + 1));
+
+public class ConstructorAutocompletions implements DotAutocompletions
+{
+	private final Class<?> c;
+	
+	public ConstructorAutocompletions(final Class<?> c) {
+		this.c = c;
+	}
+	
+	@Override
+	public List<CompletionText> get() {
+		return Arrays.asList(this.c.getConstructors()).stream()
+				.map(cons -> new CompletionText(c.getSimpleName(), c, cons))
+				.collect(Collectors.toList());
 	}
 
-	public String dualToImportStatement(final String packageName,
-		final String simpleClassName)
-	{
-		return "from " + packageName + " import " + simpleClassName;
-	}
 }

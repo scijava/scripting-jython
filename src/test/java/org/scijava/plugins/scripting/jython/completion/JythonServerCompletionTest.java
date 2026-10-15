@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package org.scijava.plugins.scripting.jython;
+package org.scijava.plugins.scripting.jython.completion;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -81,8 +81,9 @@ public class JythonServerCompletionTest {
 
 	@Test
 	public void testOnlyWithAPythonServer() {
-		// NB: No plugin offers a Python server here (scripting-appose-python
-		// does): Jython is served by its own analysis alone.
+		// NB: No plugin offers a Python server here (code-lsp-jedi does, but is
+		// left out of the tests; see pom.xml): Jython is served by its own
+		// analysis alone.
 		assertNull(PythonCompanion.launch(context.service(
 			LanguageServerService.class), stubs));
 	}

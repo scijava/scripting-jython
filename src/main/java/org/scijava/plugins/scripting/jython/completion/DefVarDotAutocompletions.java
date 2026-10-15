@@ -26,20 +26,31 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package org.scijava.plugins.scripting.jython;
+package org.scijava.plugins.scripting.jython.completion;
 
-import java.util.Collections;
 import java.util.List;
 
+public class DefVarDotAutocompletions extends VarDotAutocompletions {
 
-public class EmptyDotAutocompletions implements DotAutocompletions {
-	@Override
-	public List<CompletionText> get() {
-		return Collections.emptyList();
+	String fnName;
+	final List<String> argumentNames;
+	Scope scope;
+	
+	public DefVarDotAutocompletions(final String fnName, final String returnClassName, final List<String> argumentNames, final Scope scope) {
+		super(returnClassName);
+		this.fnName = fnName;
+		this.argumentNames = argumentNames;
+		this.scope = scope;
+	}
+	
+	public List<String> getArgumentNames() {
+		return this.argumentNames;
 	}
 	
 	@Override
 	public String toString() {
-		return "EMPTY";
+		return "DefVarAutocompletions:" +
+				"  Class: " + super.className +
+				"  Arguments: " + String.join(", ", this.argumentNames);
 	}
 }

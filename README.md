@@ -19,10 +19,11 @@ members and constructors (with their overloads), imports, the script's `#@`
 parameters and, in a live interpreter, its variables. This is Jython's own
 completion, which knows Java exactly.
 
-If a Python language server is available (e.g. jedi-language-server, as
-offered by the `appose-python` scripting plugin), its completions are added
-too: for Python modules, and for Java classes, from Python type stubs
-(`.pyi`) of the Java packages the script imports, written in the background
+A Python language server (jedi-language-server, offered by
+`scijava-code-lsp-jedi`, which runs it in a small environment of its own,
+built the first time it is needed) adds its completions too: for Python
+modules, and for Java classes, from Python type stubs (`.pyi`) of the Java
+packages the script imports, written in the background
 to `~/.cache/scijava/jython-stubs` (or `-Dscijava.jython.stubs=<dir>`). The
 server analyzes the script as CPython (Jython's standard library is Python
 2's, but mostly the same); so it is asked for completions only, not for
