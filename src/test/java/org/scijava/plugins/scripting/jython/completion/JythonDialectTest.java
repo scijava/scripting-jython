@@ -29,20 +29,27 @@
 package org.scijava.plugins.scripting.jython.completion;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
+import org.eclipse.lsp4j.CompletionItem;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.scijava.Context;
 import org.scijava.code.lsp.LanguageServerService;
+import org.scijava.code.lsp.ScriptSession;
 import org.scijava.script.ScriptLanguage;
 import org.scijava.script.ScriptService;
 
 /**
- * Tests {@link JythonDialect}.
+ * Tests {@link JythonDialect}: Jython scripts, as plain Jython for
+ * scijava-code-lsp-jython's server (which its own tests test).
  *
  * @author Gabriel Selzer
  */
@@ -93,5 +100,53 @@ public class JythonDialectTest {
 			"import net.imglib2.img"), dialect.imports(Arrays.asList(
 				"net.imglib2.img.Img", "str", "java.util.Map$Entry", "array.array")));
 		assertEquals("net", dialect.imported("import net.imglib2.img"));
+	}
+
+	@Test
+	public void testScriptParameters() {
+		final String header = "" + //
+			"#@ String (label=\"Please enter your name\") name\n" + //
+			"#@output String greeting\n" + //
+			"#@ int count\n" + //
+			"#@ NoSuchType mystery\n";
+		assertTrue(complete(header + "x = na").contains("name"));
+		assertTrue(complete(header + "myst").contains("mystery"));
+		// As the Python values Jython converts them to: e.g. strings are str,
+		// whose members are Python's, not java.lang.String's.
+		final List<String> nameMembers = complete(header + "name.upp");
+		assertTrue("expected name.upper among " + nameMembers, nameMembers
+			.contains("name.upper"));
+		assertTrue(complete(header + "name.toUpp").isEmpty());
+		// Outputs are known too, even before the script assigns them.
+		assertTrue(complete(header + "greeting.st").contains("greeting.strip"));
+		// Numbers are int, not java.lang.Integer.
+		assertFalse(complete(header + "count.intV").contains("count.intValue"));
+		// Packages imported only to declare those are not completed.
+		assertFalse(complete(header + "j").contains("java.lang"));
+	}
+
+
+	@Test
+	public void testAssignmentShadowsScriptParameter() {
+		final List<String> texts = complete(
+			"#@ String name\nfrom java.util import ArrayList\nname = ArrayList()\nname.ensureCap");
+		assertTrue("expected ArrayList member among " + texts, texts.contains(
+			"name.ensureCapacity"));
+	}
+
+
+	// -- Helper methods --
+
+	private List<String> complete(final String code) {
+		try (ScriptSession session = context.service(LanguageServerService.class)
+			.session(jython))
+		{
+			return session.completion(code, code.length()).get(30, TimeUnit.SECONDS)
+				.getItems().stream().map(CompletionItem::getLabel).collect(Collectors
+					.toList());
+		}
+		catch (final Exception exc) {
+			throw new RuntimeException(exc);
+		}
 	}
 }
