@@ -36,6 +36,9 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import org.scijava.code.lsp.ScriptDialect;
+import org.scijava.plugin.Plugin;
+import org.scijava.plugins.scripting.jython.JythonScriptLanguage;
+import org.scijava.script.ScriptLanguage;
 
 /**
  * How Jython scripts see their script parameters: as the Python values Jython
@@ -45,13 +48,24 @@ import org.scijava.code.lsp.ScriptDialect;
  * <p>
  * Each is declared as an instance of its type, in code both Jython's own
  * analysis (Python 2) and a Python language server knowing the Java packages
- * from stubs (see {@link JavaStubs}) read: e.g. {@code import net.imglib2.img;
- * image = net.imglib2.img.Img(); name = str()}.
+ * from stubs (see scijava-code-lsp-jython) read: e.g.
+ * {@code import net.imglib2.img; image = net.imglib2.img.Img(); name = str()}.
  * </p>
  *
  * @author Gabriel Selzer
  */
-class JythonDialect implements ScriptDialect {
+@Plugin(type = ScriptDialect.class, name = "Jython")
+public class JythonDialect implements ScriptDialect {
+
+	@Override
+	public boolean supports(final ScriptLanguage language) {
+		return language instanceof JythonScriptLanguage;
+	}
+
+	@Override
+	public String languageId() {
+		return "jython";
+	}
 
 	@Override
 	public String runtimeType(final Class<?> type) {
