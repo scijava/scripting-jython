@@ -33,7 +33,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -43,6 +45,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.scijava.Context;
 import org.scijava.code.lsp.LanguageServerService;
+import org.scijava.code.lsp.ScriptDialect.Header;
 import org.scijava.code.lsp.ScriptSession;
 import org.scijava.script.ScriptLanguage;
 import org.scijava.script.ScriptService;
@@ -80,26 +83,37 @@ public class JythonDialectTest {
 	}
 
 	@Test
-	public void testDeclarations() {
-		final JythonDialect dialect = new JythonDialect();
-		assertEquals("img = net.imglib2.img.Img()", dialect.declare("img",
-			"net.imglib2.img.Img"));
+	public void testParameterType() {
 		// As Jython converts them: e.g. strings and numbers to Python's.
-		assertEquals("str", dialect.parameterType(String.class));
-		assertEquals("int", dialect.parameterType(int.class));
-		assertEquals("int", dialect.parameterType(Long.class));
-		assertEquals("float", dialect.parameterType(double.class));
-		assertEquals("bool", dialect.parameterType(boolean.class));
-		assertEquals("array.array", dialect.parameterType(double[].class));
-		assertEquals("java.math.BigDecimal", dialect.parameterType(
+		assertEquals("str", JythonDialect.parameterType(String.class));
+		assertEquals("int", JythonDialect.parameterType(int.class));
+		assertEquals("int", JythonDialect.parameterType(Long.class));
+		assertEquals("float", JythonDialect.parameterType(double.class));
+		assertEquals("bool", JythonDialect.parameterType(boolean.class));
+		assertEquals("array.array", JythonDialect.parameterType(
+			double[].class));
+		// Or else as the Java objects themselves.
+		assertEquals("java.math.BigDecimal", JythonDialect.parameterType(
 			java.math.BigDecimal.class));
-		assertEquals("n = int()", dialect.declare("n", "int"));
-		assertEquals("e = java.util.Map.Entry()", dialect.declare("e",
-			"java.util.Map$Entry"));
-		assertEquals(Arrays.asList("import array", "import java.util",
-			"import net.imglib2.img"), dialect.imports(Arrays.asList(
-				"net.imglib2.img.Img", "str", "java.util.Map$Entry", "array.array")));
-		assertEquals("net", dialect.imported("import net.imglib2.img"));
+	}
+
+	@Test
+	public void testHeader() {
+		// Each parameter is declared as an instance of its type, whose package
+		// is imported.
+		final Map<String, Class<?>> parameters = new LinkedHashMap<>();
+		parameters.put("d", java.math.BigDecimal.class);
+		parameters.put("n", int.class);
+		parameters.put("e", Map.Entry.class);
+		parameters.put("a", double[].class);
+		final Header header = new JythonDialect().header(parameters);
+		assertEquals("import array; import java.math; import java.util; " +
+			"d = java.math.BigDecimal(); n = int(); " +
+			"e = java.util.Map.Entry(); a = array.array()", header.code());
+		// The names the imports bind ("import a.b" binds a) are the header's
+		// alone.
+		assertEquals(Arrays.asList("array", "java"), Arrays.asList(header
+			.hiddenNames().toArray()));
 	}
 
 	@Test

@@ -32,6 +32,7 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -41,10 +42,11 @@ import org.scijava.plugins.scripting.jython.JythonScriptLanguage;
 import org.scijava.script.ScriptLanguage;
 
 /**
- * How Jython scripts see their script parameters: as the Python values Jython
- * converts them to (e.g. {@code str} for strings, {@code int} for integers,
- * {@code array.array} for arrays), or else as the Java objects themselves
- * (e.g. {@code net.imglib2.img.Img}).
+ * Describes how to turn Jython scripts into plain Jython code. Scripts see
+ * their parameters as the Python values Jython converts them to (e.g.
+ * {@code str} for strings, {@code int} for integers, {@code array.array} for
+ * arrays), or else as the Java objects themselves (e.g.
+ * {@code net.imglib2.img.Img}).
  * <p>
  * Each is declared as an instance of its type, in code both Jython's own
  * analysis (Python 2) and a Python language server knowing the Java packages
@@ -68,7 +70,36 @@ public class JythonDialect implements ScriptDialect {
 	}
 
 	@Override
-	public String parameterType(final Class<?> type) {
+	public Header header(final Map<String, Class<?>> parameters) {
+		// Declare each parameter as an instance of its type, for type reasoning
+		final List<String> types = new ArrayList<>();
+		final List<String> declarations = new ArrayList<>();
+		parameters.forEach((name, type) -> {
+			final String t = parameterType(type);
+			types.add(t);
+			declarations.add(name + " = " + t.replace('$', '.') + "()");
+		});
+		// And import the packages of those types, before the declarations
+		final List<String> code = new ArrayList<>();
+		final Set<String> hidden = new TreeSet<>();
+		for (final String p : packages(types)) {
+			code.add("import " + p);
+			// NB: "import a.b" binds a.
+			hidden.add(p.split("\\.")[0]);
+		}
+		code.addAll(declarations);
+		// Combine into a Header
+		return new Header(String.join("; ", code), hidden);
+	}
+
+	/**
+	 * @param type the Java type (of a SciJava Script parameter) declared in the
+	 *          script
+	 * @return the type of the object given to the script by Jython: a Python
+	 *         type for the values Jython converts (e.g. {@code str}), or else
+	 *         the Java type itself
+	 */
+	static String parameterType(final Class<?> type) {
 		final Class<?> t = boxed(type);
 		// NB: As Jython converts them (Py.java2py).
 		if (t == String.class || t == Character.class) return "str";
@@ -78,25 +109,6 @@ public class JythonDialect implements ScriptDialect {
 		if (t == Boolean.class) return "bool";
 		if (t.isArray()) return "array.array";
 		return t.getName();
-	}
-
-	@Override
-	public String declare(final String name, final String type) {
-		return name + " = " + type.replace('$', '.') + "()";
-	}
-
-	@Override
-	public List<String> imports(final Collection<String> types) {
-		final List<String> imports = new ArrayList<>();
-		for (final String p : packages(types)) imports.add("import " + p);
-		return imports;
-	}
-
-	@Override
-	public String imported(final String statement) {
-		// NB: "import a.b" binds a.
-		return statement.startsWith("import ") ? statement.substring(7).split(
-			"[.\\s]")[0] : null;
 	}
 
 	/**
