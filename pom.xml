@@ -115,8 +115,8 @@
 			<groupId>org.scijava</groupId>
 			<artifactId>scijava-code-lsp-jython</artifactId>
 			<version>${scijava-code-lsp-jython.version}</version>
-			<!-- NB: Its server is found as a plugin, not used directly. -->
-			<scope>runtime</scope>
+			<!-- NB: For integration tests; applications choose their servers. -->
+			<scope>test</scope>
 		</dependency>
 
 		<!-- Third-party dependencies -->
