@@ -68,7 +68,7 @@ public class JythonDialect implements ScriptDialect {
 	}
 
 	@Override
-	public String runtimeType(final Class<?> type) {
+	public String parameterType(final Class<?> type) {
 		final Class<?> t = boxed(type);
 		// NB: As Jython converts them (Py.java2py).
 		if (t == String.class || t == Character.class) return "str";
