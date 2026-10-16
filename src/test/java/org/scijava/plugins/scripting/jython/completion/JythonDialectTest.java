@@ -85,13 +85,13 @@ public class JythonDialectTest {
 		assertEquals("img = net.imglib2.img.Img()", dialect.declare("img",
 			"net.imglib2.img.Img"));
 		// As Jython converts them: e.g. strings and numbers to Python's.
-		assertEquals("str", dialect.runtimeType(String.class));
-		assertEquals("int", dialect.runtimeType(int.class));
-		assertEquals("int", dialect.runtimeType(Long.class));
-		assertEquals("float", dialect.runtimeType(double.class));
-		assertEquals("bool", dialect.runtimeType(boolean.class));
-		assertEquals("array.array", dialect.runtimeType(double[].class));
-		assertEquals("java.math.BigDecimal", dialect.runtimeType(
+		assertEquals("str", dialect.parameterType(String.class));
+		assertEquals("int", dialect.parameterType(int.class));
+		assertEquals("int", dialect.parameterType(Long.class));
+		assertEquals("float", dialect.parameterType(double.class));
+		assertEquals("bool", dialect.parameterType(boolean.class));
+		assertEquals("array.array", dialect.parameterType(double[].class));
+		assertEquals("java.math.BigDecimal", dialect.parameterType(
 			java.math.BigDecimal.class));
 		assertEquals("n = int()", dialect.declare("n", "int"));
 		assertEquals("e = java.util.Map.Entry()", dialect.declare("e",
