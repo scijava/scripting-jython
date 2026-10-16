@@ -38,7 +38,6 @@ import org.scijava.code.lsp.LanguageServerPlugin;
 import org.scijava.code.lsp.ScriptDialect;
 import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
-import org.scijava.script.ScriptLanguage;
 
 /**
  * Offers Jython's in-process language server (see
@@ -58,13 +57,9 @@ public class JythonServerPlugin implements LanguageServerPlugin {
 	private JavaStubs stubs;
 
 	@Override
-	public boolean supports(final ScriptLanguage language) {
-		return isJython(language);
-	}
-
-	@Override
 	public boolean supports(final String languageId) {
-		// NB: Not "python", which this builds on (see PythonCompanion).
+		// NB: Jython scripts too, by their language's name. Not "python", which
+		// this builds on (see PythonCompanion).
 		return "jython".equals(languageId);
 	}
 
@@ -97,10 +92,4 @@ public class JythonServerPlugin implements LanguageServerPlugin {
 		return stubs;
 	}
 
-	/** Matches "Jython" and "Python (Jython)", without claiming CPython. */
-	static boolean isJython(final ScriptLanguage language) {
-		if (language == null) return false;
-		final String name = language.getLanguageName();
-		return name != null && name.toLowerCase().contains("jython");
-	}
 }
