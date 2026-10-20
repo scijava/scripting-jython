@@ -152,8 +152,8 @@ public class JythonDialectTest {
 	// -- Helper methods --
 
 	private List<String> complete(final String code) {
-		try (ScriptSession session = context.service(LanguageServerService.class)
-			.session(jython))
+		try (ScriptSession session = new ScriptSession(context.service(
+			LanguageServerService.class), jython))
 		{
 			return session.completion(code, code.length()).get(30, TimeUnit.SECONDS)
 				.getItems().stream().map(CompletionItem::getLabel).collect(Collectors
