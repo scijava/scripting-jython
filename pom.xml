@@ -133,22 +133,4 @@
 		</dependency>
 	</dependencies>
 
-	<build>
-		<plugins>
-			<plugin>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<configuration>
-					<!--
-					NB: Without jedi-language-server (which scijava-code-lsp-jython
-					brings), whose environment would be built (needing network access,
-					and minutes) as tests first complete code: they test Jython's own
-					analysis.
-					-->
-					<classpathDependencyExcludes>
-						<classpathDependencyExclude>org.scijava:scijava-code-lsp-jedi</classpathDependencyExclude>
-					</classpathDependencyExcludes>
-				</configuration>
-			</plugin>
-		</plugins>
-	</build>
 </project>

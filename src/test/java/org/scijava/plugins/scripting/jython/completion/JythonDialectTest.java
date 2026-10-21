@@ -128,15 +128,15 @@ public class JythonDialectTest {
 		// As the Python values Jython converts them to: e.g. strings are str,
 		// whose members are Python's, not java.lang.String's.
 		final List<String> nameMembers = complete(header + "name.upp");
-		assertTrue("expected name.upper among " + nameMembers, nameMembers
-			.contains("name.upper"));
+		assertTrue("expected upper among " + nameMembers, nameMembers.contains(
+			"upper"));
 		assertTrue(complete(header + "name.toUpp").isEmpty());
 		// Outputs are known too, even before the script assigns them.
-		assertTrue(complete(header + "greeting.st").contains("greeting.strip"));
+		assertTrue(complete(header + "greeting.st").contains("strip"));
 		// Numbers are int, not java.lang.Integer.
-		assertFalse(complete(header + "count.intV").contains("count.intValue"));
+		assertFalse(complete(header + "count.intV").contains("intValue"));
 		// Packages imported only to declare those are not completed.
-		assertFalse(complete(header + "j").contains("java.lang"));
+		assertFalse(complete(header + "j").contains("java"));
 	}
 
 
@@ -145,7 +145,7 @@ public class JythonDialectTest {
 		final List<String> texts = complete(
 			"#@ String name\nfrom java.util import ArrayList\nname = ArrayList()\nname.ensureCap");
 		assertTrue("expected ArrayList member among " + texts, texts.contains(
-			"name.ensureCapacity"));
+			"ensureCapacity"));
 	}
 
 
