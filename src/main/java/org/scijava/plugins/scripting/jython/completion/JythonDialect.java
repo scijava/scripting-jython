@@ -28,14 +28,21 @@
  */
 package org.scijava.plugins.scripting.jython.completion;
 
+import java.lang.reflect.Modifier;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.python.core.PyFunction;
+import org.python.core.PyJavaType;
+import org.python.core.PyModule;
+import org.python.core.PyObject;
 import org.scijava.code.lsp.ScriptDialect;
 import org.scijava.plugin.Plugin;
 import org.scijava.plugins.scripting.jython.JythonScriptLanguage;
@@ -53,11 +60,25 @@ import org.scijava.script.ScriptLanguage;
  * from stubs (see scijava-code-lsp-jython) read: e.g.
  * {@code import net.imglib2.img; image = net.imglib2.img.Img(); name = str()}.
  * </p>
+ * <p>
+ * A live interpreter's variables are declared by their values, where those
+ * say more: its imported Java classes as the classes themselves, its modules
+ * imported again, its functions as functions, and its other Python values as
+ * instances of their builtin types.
+ * </p>
  *
  * @author Gabriel Selzer
  */
 @Plugin(type = ScriptDialect.class, name = "Jython")
 public class JythonDialect implements ScriptDialect {
+
+	/** Names Python reserves, which cannot be declared. */
+	private static final Set<String> KEYWORDS = new HashSet<>(Arrays.asList(
+		"False", "None", "True", "and", "as", "assert", "async", "await", "break",
+		"class", "continue", "def", "del", "elif", "else", "except", "exec",
+		"finally", "for", "from", "global", "if", "import", "in", "is", "lambda",
+		"nonlocal", "not", "or", "pass", "print", "raise", "return", "try",
+		"while", "with", "yield"));
 
 	@Override
 	public boolean supports(final ScriptLanguage language) {
@@ -70,14 +91,14 @@ public class JythonDialect implements ScriptDialect {
 	}
 
 	@Override
-	public Header header(final Map<String, Class<?>> parameters) {
-		// Declare each parameter as an instance of its type, for type reasoning
+	public Header header(final Map<String, Variable> variables) {
+		// Declare each variable, for type reasoning
 		final List<String> types = new ArrayList<>();
 		final List<String> declarations = new ArrayList<>();
-		parameters.forEach((name, type) -> {
-			final String t = parameterType(type);
-			types.add(t);
-			declarations.add(name + " = " + t.replace('$', '.') + "()");
+		variables.forEach((name, v) -> {
+			// NB: Names Python reserves cannot be declared.
+			if (!KEYWORDS.contains(name)) declarations.add(declaration(name, v,
+				types));
 		});
 		// And import the packages of those types, before the declarations
 		final List<String> code = new ArrayList<>();
@@ -90,6 +111,93 @@ public class JythonDialect implements ScriptDialect {
 		code.addAll(declarations);
 		// Combine into a Header
 		return new Header(String.join("; ", code), hidden);
+	}
+
+	/**
+	 * Declares a variable: by its value, if known (e.g. a live interpreter's
+	 * imported Java class, as the class itself), or else as an instance of its
+	 * type.
+	 *
+	 * @param types Where to note the types the declaration refers to (see
+	 *          {@link #packages}).
+	 */
+	static String declaration(final String name, final Variable v,
+		final List<String> types)
+	{
+		final Object value = v.value().orElse(null);
+		// A Java class (e.g. after "from java.util import ArrayList"): itself
+		final Class<?> c = value instanceof PyJavaType ? ((PyJavaType) value)
+			.getProxyType() : value instanceof Class ? (Class<?>) value : null;
+		if (c != null) {
+			if (!isNamed(c)) return name + " = " + any(types);
+			types.add(c.getName());
+			return name + " = " + c.getName().replace('$', '.');
+		}
+		// A Python module (e.g. after "import os"): imported again
+		if (value instanceof PyModule) {
+			final PyObject module = ((PyModule) value).__findattr__("__name__");
+			if (module != null && module.toString().matches("[\\w.]+")) {
+				return "import " + module + " as " + name;
+			}
+		}
+		// A function (e.g. after "def f(): ...")
+		if (value instanceof PyFunction) {
+			return name + " = lambda *args, **kwargs: None";
+		}
+		// Another Python value (e.g. a dict): an instance of its builtin type
+		if (value instanceof PyObject) {
+			final String builtin = pythonType(((PyObject) value).getType()
+				.getName());
+			return name + " = " + (builtin != null ? builtin + "()" : any(types));
+		}
+		// A Java value, or a script parameter: an instance of its type
+		final String t = parameterType(v.type());
+		types.add(t);
+		return name + " = " + t.replace('$', '.') + "()";
+	}
+
+	/**
+	 * A value of any type (noting the module that says so), for variables
+	 * without a type to declare.
+	 */
+	private static String any(final List<String> types) {
+		types.add("typing.Any");
+		return "typing.cast(typing.Any, None)";
+	}
+
+	/**
+	 * The Python 3 type of a Python 2 builtin one (as the Python server knows
+	 * Python 3's), e.g. {@code str} for {@code unicode}; or null if not a
+	 * builtin one.
+	 */
+	private static String pythonType(final String type) {
+		switch (type) {
+			case "int":
+			case "long":
+				return "int";
+			case "unicode":
+				return "str";
+			case "bool":
+			case "float":
+			case "str":
+			case "list":
+			case "dict":
+			case "tuple":
+			case "set":
+				return type;
+			default:
+				return null;
+		}
+	}
+
+	/** Whether code can refer to a class by its name. */
+	private static boolean isNamed(final Class<?> c) {
+		if (c.isPrimitive() || c.isArray() || c.isAnonymousClass() || c
+			.isLocalClass() || c.getName().indexOf('.') < 0) return false;
+		for (Class<?> t = c; t != null; t = t.getEnclosingClass()) {
+			if (!Modifier.isPublic(t.getModifiers())) return false;
+		}
+		return true;
 	}
 
 	/**
