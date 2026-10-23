@@ -84,6 +84,15 @@
 	<properties>
 		<package-name>org.scijava.plugins.scripting.jython</package-name>
 
+		<!-- TEMP: Remove once pom-scijava manages scijava-common 2.101.0. -->
+		<scijava-common.version>2.101.0</scijava-common.version>
+		<scijava-code-lsp.version>0.1.0-SNAPSHOT</scijava-code-lsp.version>
+		<scijava-code-lsp-jython.version>0.1.0-SNAPSHOT</scijava-code-lsp-jython.version>
+		<!-- NB: As Fiji ships, for scijava-code-lsp (lsp4j); newer than pom-scijava 34's. -->
+		<gson.version>2.14.0</gson.version>
+		<!-- NB: As scijava-code-lsp-jedi is built with; newer than pom-scijava 34's. -->
+		<jackson.version>2.19.2</jackson.version>
+
 		<license.licenseName>bsd_2</license.licenseName>
 		<license.copyrightOwners>SciJava developers.</license.copyrightOwners>
 		<license.excludes>**/script_templates/**</license.excludes>
@@ -97,6 +106,18 @@
 		<dependency>
 			<groupId>org.scijava</groupId>
 			<artifactId>scijava-common</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.scijava</groupId>
+			<artifactId>scijava-code-lsp</artifactId>
+			<version>${scijava-code-lsp.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.scijava</groupId>
+			<artifactId>scijava-code-lsp-jython</artifactId>
+			<version>${scijava-code-lsp-jython.version}</version>
+			<!-- NB: For integration tests; applications choose their servers. -->
+			<scope>test</scope>
 		</dependency>
 
 		<!-- Third-party dependencies -->
@@ -112,4 +133,5 @@
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
+
 </project>
