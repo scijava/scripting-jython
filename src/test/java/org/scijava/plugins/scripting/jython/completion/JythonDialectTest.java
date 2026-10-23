@@ -39,13 +39,18 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import javax.script.ScriptContext;
+import javax.script.ScriptEngine;
+
 import org.eclipse.lsp4j.CompletionItem;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.scijava.Context;
 import org.scijava.code.lsp.LanguageServerService;
+import org.python.jsr223.PyScriptEngineFactory;
 import org.scijava.code.lsp.ScriptDialect.Header;
+import org.scijava.code.lsp.ScriptDialect.Variable;
 import org.scijava.code.lsp.ScriptSession;
 import org.scijava.script.ScriptLanguage;
 import org.scijava.script.ScriptService;
@@ -101,11 +106,11 @@ public class JythonDialectTest {
 	public void testHeader() {
 		// Each parameter is declared as an instance of its type, whose package
 		// is imported.
-		final Map<String, Class<?>> parameters = new LinkedHashMap<>();
-		parameters.put("d", java.math.BigDecimal.class);
-		parameters.put("n", int.class);
-		parameters.put("e", Map.Entry.class);
-		parameters.put("a", double[].class);
+		final Map<String, Variable> parameters = new LinkedHashMap<>();
+		parameters.put("d", Variable.ofType(java.math.BigDecimal.class));
+		parameters.put("n", Variable.ofType(int.class));
+		parameters.put("e", Variable.ofType(Map.Entry.class));
+		parameters.put("a", Variable.ofType(double[].class));
 		final Header header = new JythonDialect().header(parameters);
 		assertEquals("import array; import java.math; import java.util; " +
 			"d = java.math.BigDecimal(); n = int(); " +
@@ -114,6 +119,31 @@ public class JythonDialectTest {
 		// alone.
 		assertEquals(Arrays.asList("array", "java"), Arrays.asList(header
 			.hiddenNames().toArray()));
+	}
+
+	@Test
+	public void testLiveHeader() throws Exception {
+		// A live interpreter's variables, by their values.
+		final ScriptEngine engine = new PyScriptEngineFactory().getScriptEngine();
+		engine.put("injected", new java.util.ArrayList<String>());
+		engine.eval("import os\n" + //
+			"from java.util import HashMap\n" + //
+			"def helper(): pass\n" + //
+			"pairs = {1: 2}\n");
+		final Map<String, Variable> live = new LinkedHashMap<>();
+		for (final String name : Arrays.asList("injected", "os", "HashMap",
+			"helper", "pairs"))
+		{
+			final Object value = engine.get(name);
+			live.put(name, Variable.ofValue(value, value.getClass()));
+		}
+		final Header header = new JythonDialect().header(live);
+		assertEquals("import java.util; " + //
+			"injected = java.util.ArrayList(); " + //
+			"import os as os; " + //
+			"HashMap = java.util.HashMap; " + //
+			"helper = lambda *args, **kwargs: None; " + //
+			"pairs = dict()", header.code());
 	}
 
 	@Test
@@ -149,11 +179,37 @@ public class JythonDialectTest {
 	}
 
 
+	@Test
+	public void testInterpreterBindings() throws Exception {
+		// Code typed into a running interpreter: its variables.
+		final ScriptEngine engine = new PyScriptEngineFactory().getScriptEngine();
+		engine.put("injected", new java.util.ArrayList<String>());
+		engine.eval("from java.util import Collections, HashMap\n" +
+			"m = HashMap()\n" +
+			"def helper(): pass\n" +
+			"import os.path as osp\n");
+		final ScriptContext live = engine.getContext();
+		assertTrue(complete("m.putIfAb", live).contains("putIfAbsent"));
+		assertTrue(complete("injected.si", live).contains("size"));
+		assertTrue(complete("x = hel", live).contains("helper"));
+		// An imported Java class offers its static members.
+		assertTrue(complete("Collections.emptyL", live).contains("emptyList"));
+		// A module bound under another name is the module itself.
+		assertTrue(complete("osp.joi", live).contains("join"));
+	}
+
 	// -- Helper methods --
 
 	private List<String> complete(final String code) {
-		try (ScriptSession session = new ScriptSession(context.service(
-			LanguageServerService.class), jython))
+		return complete(code, null);
+	}
+
+	/** Completions at the end of the code, typed into the given interpreter. */
+	private List<String> complete(final String code, final ScriptContext live) {
+		final LanguageServerService servers = context.service(
+			LanguageServerService.class);
+		try (ScriptSession session = live == null ? new ScriptSession(servers,
+			jython) : new ScriptSession(servers, jython, live))
 		{
 			return session.completion(code, code.length()).get(30, TimeUnit.SECONDS)
 				.getItems().stream().map(CompletionItem::getLabel).collect(Collectors
