@@ -84,6 +84,7 @@
 	<properties>
 		<package-name>org.scijava.plugins.scripting.jython</package-name>
 
+		<!-- TEMP: Remove once pom-scijava manages scijava-common 2.101.0. -->
 		<scijava-common.version>2.101.0</scijava-common.version>
 		<scijava-code-lsp.version>0.1.0-SNAPSHOT</scijava-code-lsp.version>
 		<scijava-code-lsp-jython.version>0.1.0-SNAPSHOT</scijava-code-lsp-jython.version>
