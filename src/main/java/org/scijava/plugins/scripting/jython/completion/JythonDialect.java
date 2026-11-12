@@ -86,7 +86,7 @@ public class JythonDialect implements ScriptDialect {
 	}
 
 	@Override
-	public String languageId() {
+	public String outputLanguage() {
 		return "jython";
 	}
 

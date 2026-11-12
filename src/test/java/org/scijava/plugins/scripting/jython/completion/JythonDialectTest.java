@@ -83,7 +83,7 @@ public class JythonDialectTest {
 		// serves.
 		final JythonDialect dialect = new JythonDialect();
 		assertTrue(dialect.supports(jython));
-		assertEquals("jython", dialect.languageId());
+		assertEquals("jython", dialect.outputLanguage());
 		assertTrue(context.service(LanguageServerService.class).supports(jython));
 	}
 
