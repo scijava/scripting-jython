@@ -17,12 +17,12 @@ lines of script code based on SciJava events.
 The Script Editor completes code in Jython scripts: Java classes, their
 members and constructors (with their overloads), imports, the script's `#@`
 parameters and, in a live interpreter, its variables. This is Jython's own
-completion, which knows Java exactly, by `scijava-code-lsp-jython`'s language
+completion, which knows Java exactly, by `scijava-lsp-jython`'s language
 server; this plugin shows it the scripts as plain Jython (`JythonDialect`),
 their parameters declared.
 
 A Python language server (jedi-language-server, offered by
-`scijava-code-lsp-jedi`, which runs it in a small environment of its own,
+`scijava-lsp-jedi`, which runs it in a small environment of its own,
 built the first time it is needed) adds its completions too: for Python
 modules, and for Java classes, from Python type stubs (`.pyi`) of the Java
 packages the script imports, written in the background

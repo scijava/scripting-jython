@@ -43,7 +43,7 @@ import org.python.core.PyFunction;
 import org.python.core.PyJavaType;
 import org.python.core.PyModule;
 import org.python.core.PyObject;
-import org.scijava.code.lsp.ScriptDialect;
+import org.scijava.lsp.ScriptDialect;
 import org.scijava.plugin.Plugin;
 import org.scijava.plugins.scripting.jython.JythonScriptLanguage;
 import org.scijava.script.ScriptLanguage;
@@ -57,7 +57,7 @@ import org.scijava.script.ScriptLanguage;
  * <p>
  * Each is declared as an instance of its type, in code both Jython's own
  * analysis (Python 2) and a Python language server knowing the Java packages
- * from stubs (see scijava-code-lsp-jython) read: e.g.
+ * from stubs (see scijava-lsp-jython) read: e.g.
  * {@code import net.imglib2.img; image = net.imglib2.img.Img(); name = str()}.
  * </p>
  * <p>

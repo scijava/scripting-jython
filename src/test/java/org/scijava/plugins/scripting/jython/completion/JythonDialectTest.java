@@ -47,17 +47,17 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.scijava.Context;
-import org.scijava.code.lsp.LanguageServerService;
+import org.scijava.lsp.LanguageServerService;
 import org.python.jsr223.PyScriptEngineFactory;
-import org.scijava.code.lsp.ScriptDialect.Header;
-import org.scijava.code.lsp.ScriptDialect.Variable;
-import org.scijava.code.lsp.ScriptSession;
+import org.scijava.lsp.ScriptDialect.Header;
+import org.scijava.lsp.ScriptDialect.Variable;
+import org.scijava.lsp.ScriptSession;
 import org.scijava.script.ScriptLanguage;
 import org.scijava.script.ScriptService;
 
 /**
  * Tests {@link JythonDialect}: Jython scripts, as plain Jython for
- * scijava-code-lsp-jython's server (which its own tests test).
+ * scijava-lsp-jython's server (which its own tests test).
  *
  * @author Gabriel Selzer
  */
@@ -79,7 +79,7 @@ public class JythonDialectTest {
 
 	@Test
 	public void testScriptsAreServed() {
-		// Jython scripts become plain Jython, which scijava-code-lsp-jython
+		// Jython scripts become plain Jython, which scijava-lsp-jython
 		// serves.
 		final JythonDialect dialect = new JythonDialect();
 		assertTrue(dialect.supports(jython));
