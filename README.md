@@ -21,15 +21,14 @@ completion, which knows Java exactly, by `scijava-lsp-jython`'s language
 server; this plugin shows it the scripts as plain Jython (`JythonDialect`),
 their parameters declared.
 
-A Python language server (jedi-language-server, offered by
-`scijava-lsp-jedi`, which runs it in a small environment of its own,
-built the first time it is needed) adds its completions too: for Python
-modules, and for Java classes, from Python type stubs (`.pyi`) of the Java
-packages the script imports, written in the background
-to `~/.cache/scijava/jython-stubs` (or `-Dscijava.jython.stubs=<dir>`). The
-server analyzes the script as CPython (Jython's standard library is Python
-2's, but mostly the same); so it is asked for completions only, not for
-problems.
+A Python language server (ty, offered by `scijava-lsp-ty`, which runs it
+in a small environment of its own, built the first time it is needed) adds
+its completions too: for Python modules, and for Java classes, from Python
+type stubs (`.pyi`) of the Java packages the script imports, written in
+the background to `~/.cache/scijava/jython-stubs` (or
+`-Dscijava.jython.stubs=<dir>`). The server analyzes the script as CPython
+(Jython's standard library is Python 2's, but mostly the same); so it is
+asked for completions only, not for problems.
 
 For a complete list of scripting languages available as part of the SciJava
 platform, see the
