@@ -10,7 +10,7 @@
 	</parent>
 
 	<artifactId>scripting-jython</artifactId>
-	<version>1.0.2-SNAPSHOT</version>
+	<version>2.0.0-SNAPSHOT</version>
 
 	<name>SciJava Scripting: Jython</name>
 	<description>JSR-223-compliant Jython scripting language plugin.</description>
@@ -54,6 +54,11 @@
 			<url>https://imagej.net/people/hinerm</url>
 			<properties><id>hinerm</id></properties>
 		</contributor>
+		<contributor>
+			<name>Gabriel Selzer</name>
+			<url>https://imagej.net/people/gselzer</url>
+			<properties><id>gselzer</id></properties>
+		</contributor>
 	</contributors>
 
 	<mailingLists>
@@ -84,6 +89,7 @@
 	<properties>
 		<scijava.jvm.version>8</scijava.jvm.version>
 		<package-name>org.scijava.plugins.scripting.jython</package-name>
+		<surefire.useModulePath>false</surefire.useModulePath>
 
 		<!-- TEMP: Remove once pom-scijava manages scijava-common 2.101.0. -->
 		<scijava-common.version>2.101.0</scijava-common.version>
@@ -134,5 +140,40 @@
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
+
+	<build>
+		<plugins>
+			<!--
+			NB: Tests run on the classpath since we use scijava-common's tests JAR.
+			That JAR shares the org.scijava module name with scijava-common itself, so
+			it cannot be resolved on the module path.
+			-->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<configuration>
+					<!--
+					NB: In module mode, javac does not discover annotation processors
+					on the module path, so the @Plugin indexer must be declared here.
+					-->
+					<annotationProcessorPaths>
+						<path>
+							<groupId>org.scijava</groupId>
+							<artifactId>scijava-common</artifactId>
+							<version>${scijava-common.version}</version>
+						</path>
+					</annotationProcessorPaths>
+				</configuration>
+				<executions>
+					<execution>
+						<id>default-testCompile</id>
+						<configuration>
+							<useModulePath>false</useModulePath>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
 
 </project>
