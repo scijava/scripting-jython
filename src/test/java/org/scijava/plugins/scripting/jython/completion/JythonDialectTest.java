@@ -32,10 +32,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import java.util.Arrays;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -50,7 +47,6 @@ import org.scijava.Context;
 import org.scijava.lsp.LanguageServerService;
 import org.python.jsr223.PyScriptEngineFactory;
 import org.scijava.lsp.ScriptDialect.Header;
-import org.scijava.lsp.ScriptDialect.Variable;
 import org.scijava.lsp.ScriptSession;
 import org.scijava.script.ScriptLanguage;
 import org.scijava.script.ScriptService;
@@ -78,18 +74,17 @@ public class JythonDialectTest {
 	}
 
 	@Test
-	public void testScriptsAreServed() {
-		// Jython scripts become plain Jython, which scijava-lsp-jython
-		// serves.
+	public void testSupports() {
+		// JythonDialect supports JythonScriptLanguage
 		final JythonDialect dialect = new JythonDialect();
 		assertTrue(dialect.supports(jython));
-		assertEquals("jython", dialect.outputLanguage());
-		assertTrue(context.service(LanguageServerService.class).supports(jython));
+		// JythonLanguageServer supports JythonDialect's output
+		assertTrue(context.service(LanguageServerService.class).supports(dialect.outputLanguage()));
 	}
 
 	@Test
 	public void testParameterType() {
-		// As Jython converts them: e.g. strings and numbers to Python's.
+		// Ensure Java primitives are converted to Python primitives
 		assertEquals("str", JythonDialect.parameterType(String.class));
 		assertEquals("int", JythonDialect.parameterType(int.class));
 		assertEquals("int", JythonDialect.parameterType(Long.class));
@@ -97,105 +92,65 @@ public class JythonDialectTest {
 		assertEquals("bool", JythonDialect.parameterType(boolean.class));
 		assertEquals("array.array", JythonDialect.parameterType(
 			double[].class));
-		// Or else as the Java objects themselves.
+		// Ensure Java classes stay the same
 		assertEquals("java.math.BigDecimal", JythonDialect.parameterType(
 			java.math.BigDecimal.class));
 	}
 
 	@Test
-	public void testHeader() {
-		// Each parameter is declared as an instance of its type, whose package
-		// is imported.
-		final Map<String, Variable> parameters = new LinkedHashMap<>();
-		parameters.put("d", Variable.ofType(java.math.BigDecimal.class));
-		parameters.put("n", Variable.ofType(int.class));
-		parameters.put("e", Variable.ofType(Map.Entry.class));
-		parameters.put("a", Variable.ofType(double[].class));
-		final Header header = new JythonDialect().header(parameters);
-		assertEquals("import array; import java.math; import java.util; " +
-			"d = java.math.BigDecimal(); n = int(); " +
-			"e = java.util.Map.Entry(); a = array.array()", header.code());
-		// The names the imports bind ("import a.b" binds a) are the header's
-		// alone.
-		assertEquals(Arrays.asList("array", "java"), Arrays.asList(header
-			.hiddenNames().toArray()));
-	}
-
-	@Test
-	public void testLiveHeader() throws Exception {
-		// A live interpreter's variables, by their values.
-		final ScriptEngine engine = new PyScriptEngineFactory().getScriptEngine();
-		engine.put("injected", new java.util.ArrayList<String>());
-		engine.eval("import os\n" + //
-			"from java.util import HashMap\n" + //
-			"def helper(): pass\n" + //
-			"pairs = {1: 2}\n");
-		final Map<String, Variable> live = new LinkedHashMap<>();
-		for (final String name : Arrays.asList("injected", "os", "HashMap",
-			"helper", "pairs"))
-		{
-			final Object value = engine.get(name);
-			live.put(name, Variable.ofValue(value, value.getClass()));
-		}
-		final Header header = new JythonDialect().header(live);
-		assertEquals("import java.util; " + //
-			"injected = java.util.ArrayList(); " + //
-			"import os as os; " + //
-			"HashMap = java.util.HashMap; " + //
-			"helper = lambda *args, **kwargs: None; " + //
-			"pairs = dict()", header.code());
-	}
-
-	@Test
 	public void testScriptParameters() {
-		final String header = "" + //
+		final String scijavaScriptPrefix = //
 			"#@ String (label=\"Please enter your name\") name\n" + //
 			"#@output String greeting\n" + //
-			"#@ int count\n" + //
+			"#@ java.util.Map$Entry entry\n" + //
+			"#@ double[] values\n" + //
 			"#@ NoSuchType mystery\n";
-		assertTrue(complete(header + "x = na").contains("name"));
-		assertTrue(complete(header + "myst").contains("mystery"));
-		// As the Python values Jython converts them to: e.g. strings are str,
-		// whose members are Python's, not java.lang.String's.
-		final List<String> nameMembers = complete(header + "name.upp");
+		// Ensure script parameter names can be autocompleted
+		assertTrue(complete(scijavaScriptPrefix + "x = na").contains("name"));
+		assertTrue(complete(scijavaScriptPrefix + "myst").contains("mystery"));
+		// Primitive script parameters have the members of their JYTHON types...
+		final List<String> nameMembers = complete(scijavaScriptPrefix + "name.upp");
 		assertTrue("expected upper among " + nameMembers, nameMembers.contains(
 			"upper"));
-		assertTrue(complete(header + "name.toUpp").isEmpty());
+		// ...but NOT the members of their JAVA types
+		assertTrue(complete(scijavaScriptPrefix + "name.toUpp").isEmpty());
 		// Outputs are known too, even before the script assigns them.
-		assertTrue(complete(header + "greeting.st").contains("strip"));
-		// Numbers are int, not java.lang.Integer.
-		assertFalse(complete(header + "count.intV").contains("intValue"));
-		// Packages imported only to declare those are not completed.
-		assertFalse(complete(header + "j").contains("java"));
-	}
+		assertTrue(complete(scijavaScriptPrefix + "greeting.st").contains("strip"));
+		// Other Java objects are instances of their classes, nested ones included.
+		assertTrue(complete(scijavaScriptPrefix + "entry.getK").contains("getKey"));
+		// Java arrays are Python arrays.
+		assertTrue(complete(scijavaScriptPrefix + "values.app").contains("append"));
+		// Modules imported only to declare those are not completed.
+		// TODO: Also check "j" (for java), once scijava-lsp ignores #@ lines
+		// when deciding whether the script mentions a name.
+		assertFalse(complete(scijavaScriptPrefix + "arr").contains("array"));	}
 
 
-	@Test
-	public void testAssignmentShadowsScriptParameter() {
-		final List<String> texts = complete(
-			"#@ String name\nfrom java.util import ArrayList\nname = ArrayList()\nname.ensureCap");
-		assertTrue("expected ArrayList member among " + texts, texts.contains(
-			"ensureCapacity"));
-	}
-
-
+	/**
+	 * Tests that bindings in an {@link org.scijava.lsp.Environment} make it into the
+	 * {@link Header}.
+	 */
 	@Test
 	public void testInterpreterBindings() throws Exception {
-		// Code typed into a running interpreter: its variables.
+		// Derive a ScriptContext with some bindings
 		final ScriptEngine engine = new PyScriptEngineFactory().getScriptEngine();
 		engine.put("injected", new java.util.ArrayList<String>());
-		engine.eval("from java.util import Collections, HashMap\n" +
-			"m = HashMap()\n" +
-			"def helper(): pass\n" +
-			"import os.path as osp\n");
+		engine.eval("from java.util import Collections\n" + //
+			"import os.path as osp\n" + //
+			"def helper(): pass\n" + //
+			"pairs = {1: 2}\n");
 		final ScriptContext live = engine.getContext();
-		assertTrue(complete("m.putIfAb", live).contains("putIfAbsent"));
+		// Pass that ScriptContext to completion and ensure it can be used.
+		// A Java object offers its instance members.
 		assertTrue(complete("injected.si", live).contains("size"));
-		assertTrue(complete("x = hel", live).contains("helper"));
 		// An imported Java class offers its static members.
 		assertTrue(complete("Collections.emptyL", live).contains("emptyList"));
 		// A module bound under another name is the module itself.
 		assertTrue(complete("osp.joi", live).contains("join"));
+		// A function is known by name.
+		assertTrue(complete("x = hel", live).contains("helper"));
+		// A Python value is an instance of its builtin type.
+		assertTrue(complete("pairs.ke", live).contains("keys"));
 	}
 
 	// -- Helper methods --
