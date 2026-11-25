@@ -17,6 +17,12 @@ platform, see the
 [Scripting](https://github.com/scijava/scijava-common/wiki/Scripting) page on
 the SciJava Common wiki.
 
-See also:
+## Code completion
+
+The Script Editor completes code in Jython scripts with
+`scijava-lsp-jython`'s language server. The `JythonDialect` plugin is used
+to convert SciJava scripts into text that language server can understand.
+
+## See also:
 * [Jython Scripting](http://wiki.imagej.net/Jython_Scripting)
   on the ImageJ wiki.
