@@ -48,6 +48,8 @@ import org.scijava.lsp.LanguageServerService;
 import org.python.jsr223.PyScriptEngineFactory;
 import org.scijava.lsp.ScriptDialect.Header;
 import org.scijava.lsp.ScriptSession;
+import org.scijava.log.LogLevel;
+import org.scijava.log.LogService;
 import org.scijava.script.ScriptLanguage;
 import org.scijava.script.ScriptService;
 
@@ -99,6 +101,9 @@ public class JythonDialectTest {
 
 	@Test
 	public void testScriptParameters() {
+		// Note: NoSuchType is deliberately unresolvable; silence the resulting
+		// warnings (with stack traces) that the parameter parser logs for it.
+		context.service(LogService.class).setLevel(LogLevel.ERROR);
 		final String scijavaScriptPrefix = //
 			"#@ String (label=\"Please enter your name\") name\n" + //
 			"#@output String greeting\n" + //
@@ -123,7 +128,8 @@ public class JythonDialectTest {
 		// Modules imported only to declare those are not completed.
 		// TODO: Also check "j" (for java), once scijava-lsp ignores #@ lines
 		// when deciding whether the script mentions a name.
-		assertFalse(complete(scijavaScriptPrefix + "arr").contains("array"));	}
+		assertFalse(complete(scijavaScriptPrefix + "arr").contains("array"));
+	}
 
 
 	/**
